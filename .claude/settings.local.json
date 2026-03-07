@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/asrajavel/mf-analysis/refs/heads/main/assets/index/indexDataManager.js\")",
+      "Bash(npm run typecheck)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/asrajavel/mf-index-data/main/index%20list.json\")",
+      "Bash(grep -r \"margin.*0\" /Users/rajavel.as/projects/mf-analysis-react/src/components --include=\"*.tsx\" -A 3 -B 3)",
+      "Bash(grep -n \"export.*MultiFundCharts\" /Users/rajavel.as/projects/mf-analysis-react/src/components/MultiFundCharts.tsx)",
+      "Bash(grep -n \"portfolioSchemes\" /Users/rajavel.as/projects/mf-analysis-react/src/components/MultiFundCharts.tsx)",
+      "Bash(grep -n \"MultiFundCharts\" /Users/rajavel.as/projects/mf-analysis-react/src/components/ChartArea.tsx)",
+      "Bash(git add .)",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__evaluate_script",
+      "Bash(npm run:*)",
+      "mcp__chrome-devtools__navigate_page"
+    ],
+    "deny": []
+  }
+}

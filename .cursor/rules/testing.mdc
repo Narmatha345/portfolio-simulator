@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+1. **Keep tests very minimal and focused** - Avoid over-testing
+2. **Combine related assertions** in the same test when logical
+3. **Remove redundant or overly granular tests**
+4. **Focus on critical functionality** - Test edge cases and integration points rather than every possible variation
+5. **Assert actual values** - instad of approximations like is close to etc, run some dummy tests to actually capture the outputs, and use them as exact asserts

@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+Keep running tests and fix iteratively without propting to ask user everytime.
+Dont do too much custom styling, try to use base webs existing designs, components etc, you can check online for documentations
