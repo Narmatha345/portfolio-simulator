@@ -37,7 +37,12 @@ const showErrorToast = (message: string) => {
 
 interface YahooFinanceResponse {
   chart: {
-    result: any[];
+    result: Array<{
+      timestamp: number[];
+      indicators: {
+        adjclose?: Array<{ adjclose: (number | null)[] }>;
+      };
+    }>;
     error: any;
   };
 }
@@ -47,60 +52,42 @@ class YahooFinanceService {
   private currencyCache: Record<string, string> = {};
 
   async fetchStockData(symbol: string): Promise<ProcessedIndexData[]> {
-    if (this.stockDataCache[symbol]) {
-      return this.stockDataCache[symbol];
-    }
+    if (this.stockDataCache[symbol]) return this.stockDataCache[symbol];
 
     try {
       const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=100y`;
 
-      const proxyUrl =
-        `https://cors-proxy-lake-omega.vercel.app/api/proxy?url=${encodeURIComponent(yahooUrl)}`;
+      const proxyUrl = `https://cors-proxy-lake-omega.vercel.app/api/proxy?url=${encodeURIComponent(
+        yahooUrl
+      )}`;
 
       const response = await fetch(proxyUrl);
 
-      if (!response.ok) {
-        throw new Error(`Ticker "${symbol}" not found`);
-      }
+      if (!response.ok) throw new Error(`Ticker "${symbol}" not found`);
 
       const yahooData: YahooFinanceResponse = await response.json();
 
-      if (!yahooData?.chart?.result?.length) {
-        throw new Error(`No data for ticker "${symbol}"`);
-      }
+      const chart = yahooData?.chart?.result?.[0];
+      if (!chart) throw new Error(`No data for ticker "${symbol}"`);
 
-      const chart = yahooData.chart.result[0];
-
-      const timestamps: number[] = chart?.timestamp || [];
-      const prices: number[] =
-        chart?.indicators?.adjclose?.[0]?.adjclose || [];
-
-      if (!timestamps.length || !prices.length) {
-        throw new Error(`Invalid data for ticker "${symbol}"`);
-      }
+      const timestamps = chart.timestamp || [];
+      const pricesRaw = chart.indicators.adjclose?.[0]?.adjclose || [];
 
       const processed: ProcessedIndexData[] = [];
-
       for (let i = 0; i < timestamps.length; i++) {
-        const price = prices[i];
-        if (!price) continue;
+        const price = pricesRaw[i];
+        if (price === null || price === undefined) continue;
 
         const date = new Date(timestamps[i] * 1000);
-
         processed.push({
-          date: new Date(
-            Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-          ),
+          date: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())),
           nav: price,
         });
       }
 
-      if (processed.length < 2) {
-        throw new Error(`Not enough data for ticker "${symbol}"`);
-      }
+      if (processed.length < 2) throw new Error(`Not enough valid data for ticker "${symbol}"`);
 
       this.stockDataCache[symbol] = processed;
-
       return processed;
     } catch (err) {
       const msg = `Error fetching Yahoo Finance ticker "${symbol}"`;
@@ -115,11 +102,9 @@ class YahooFinanceService {
     convertToINR: boolean
   ): Promise<ProcessedIndexData[]> {
     const data = await this.fetchStockData(symbol);
-
     if (!convertToINR) return data;
 
     const currency = this.currencyCache[symbol];
-
     if (!currency || currency === "INR") return data;
 
     return this._convertToINR(data, currency);
@@ -130,25 +115,17 @@ class YahooFinanceService {
     fromCurrency: string
   ): Promise<ProcessedIndexData[]> {
     const forexSymbol = `${fromCurrency}INR=X`;
-
     const forexData = await this.fetchStockData(forexSymbol);
 
     let fxIndex = 0;
     let rate = forexData[0]?.nav || 1;
 
     return data.map((point) => {
-      while (
-        fxIndex < forexData.length &&
-        forexData[fxIndex].date <= point.date
-      ) {
+      while (fxIndex < forexData.length && forexData[fxIndex].date <= point.date) {
         rate = forexData[fxIndex].nav;
         fxIndex++;
       }
-
-      return {
-        date: point.date,
-        nav: point.nav * rate,
-      };
+      return { date: point.date, nav: point.nav * rate };
     });
   }
 
