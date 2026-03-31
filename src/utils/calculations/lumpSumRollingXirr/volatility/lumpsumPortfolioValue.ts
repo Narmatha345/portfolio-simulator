@@ -5,15 +5,16 @@ export interface DailyLumpsumPortfolioValue {
   totalValue: number;
 }
 
+function toDateKey(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function buildDateMap(fund: NavEntry[]): Map<string, NavEntry> {
+  return new Map(fund.map(entry => [toDateKey(entry.date), entry]));
+}
+
 /**
  * Calculate daily portfolio values for a lumpsum investment
- * Much simpler than SIP - units are fixed from day 1, just multiply by NAV each day
- * 
- * @param navDataList - NAV data for each fund
- * @param startDate - Investment start date
- * @param endDate - Investment end date
- * @param allocations - Allocation percentages for each fund
- * @param investmentAmount - Total lumpsum amount
  */
 export function calculateDailyLumpsumPortfolioValue(
   navDataList: NavEntry[][],
@@ -22,60 +23,71 @@ export function calculateDailyLumpsumPortfolioValue(
   allocations: number[],
   investmentAmount: number
 ): DailyLumpsumPortfolioValue[] {
+
   if (navDataList.length === 0 || navDataList.length !== allocations.length) {
     return [];
   }
 
-  // Calculate units purchased on day 1 for each fund
+  const fundMaps = navDataList.map(buildDateMap);
+
+  const startKey = toDateKey(startDate);
+
   const unitsPerFund: number[] = [];
-  for (let f = 0; f < navDataList.length; f++) {
-    const startNav = navDataList[f].find(entry => 
-      entry.date.getTime() === startDate.getTime()
-    );
-    
-    if (!startNav) {
-      return [];
-    }
-    
-    const fundAllocation = (investmentAmount * allocations[f]) / 100;
-    unitsPerFund[f] = fundAllocation / startNav.nav;
+
+  // Calculate units on start date
+  for (let f = 0; f < fundMaps.length; f++) {
+
+    const startNav = fundMaps[f].get(startKey);
+
+    if (!startNav) return [];
+
+    const allocationAmount =
+      (investmentAmount * allocations[f]) / 100;
+
+    unitsPerFund[f] = allocationAmount / startNav.nav;
   }
 
-  // Calculate portfolio value for each day
-  const dailyValues: DailyLumpsumPortfolioValue[] = [];
-  
-  // Use first fund's dates as reference (all should be aligned after filling)
-  const relevantDates = navDataList[0].filter(
-    entry => entry.date >= startDate && entry.date <= endDate
-  );
+  const dateSet = new Set<number>();
 
-  for (const dateEntry of relevantDates) {
-    const currentDate = dateEntry.date;
-    let totalValue = 0;
-    let valid = true;
+  navDataList.forEach(fund => {
+    fund.forEach(entry => {
+      if (entry.date >= startDate && entry.date <= endDate) {
+        dateSet.add(entry.date.getTime());
+      }
+    });
+  });
 
-    // Sum value across all funds
-    for (let f = 0; f < navDataList.length; f++) {
-      const navEntry = navDataList[f].find(
-        entry => entry.date.getTime() === currentDate.getTime()
-      );
-      
+  const allDates = Array.from(dateSet)
+    .sort((a, b) => a - b)
+    .map(ts => new Date(ts));
+
+  const results: DailyLumpsumPortfolioValue[] = [];
+
+  for (const date of allDates) {
+
+    const key = toDateKey(date);
+
+    let total = 0;
+
+    for (let f = 0; f < fundMaps.length; f++) {
+
+      const navEntry = fundMaps[f].get(key);
+
       if (!navEntry) {
-        valid = false;
+        total = 0;
         break;
       }
-      
-      totalValue += unitsPerFund[f] * navEntry.nav;
+
+      total += unitsPerFund[f] * navEntry.nav;
     }
 
-    if (valid && totalValue > 0) {
-      dailyValues.push({
-        date: currentDate,
-        totalValue
+    if (total > 0) {
+      results.push({
+        date,
+        totalValue: total
       });
     }
   }
 
-  return dailyValues;
+  return results;
 }
-
