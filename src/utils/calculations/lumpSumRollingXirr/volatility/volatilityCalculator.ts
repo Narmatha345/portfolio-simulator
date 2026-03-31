@@ -6,81 +6,98 @@ export interface DailyPortfolioValue {
 }
 
 /**
+ * Google Finance style Return %
+ * Return% = ((Current Value - Invested Amount) / Invested Amount) * 100
+ */
+export function calculateReturnPercent(
+  dailyValues: DailyPortfolioValue[],
+  investedAmount: number
+): { date: Date; returnPercent: number }[] {
+
+  if (!dailyValues.length || investedAmount <= 0) {
+    return [];
+  }
+
+  return dailyValues.map(v => {
+
+    const returnPercent =
+      ((v.totalValue - investedAmount) / investedAmount) * 100;
+
+    return {
+      date: v.date,
+      returnPercent
+    };
+  });
+}
+
+/**
  * Calculate portfolio volatility from daily portfolio values
  * Returns annualized volatility as a percentage
- * 
- * Lumpsum version is simpler than SIP since there are no intermediate cash flows
- * to adjust for - just a single investment at start
  */
 export function calculateVolatility(
   dailyValues: DailyPortfolioValue[]
 ): number {
-  // Need at least 2 data points to calculate volatility
+
   if (dailyValues.length < 2) {
     return 0;
   }
 
-  // Calculate daily returns
   const dailyReturns = calculateDailyReturns(dailyValues);
 
-  // Need at least 2 returns to calculate volatility
   if (dailyReturns.length < 2) {
     return 0;
   }
 
-  // Calculate mean return
-  const meanReturn = dailyReturns.reduce((sum, r) => sum + r, 0) / dailyReturns.length;
+  const meanReturn =
+    dailyReturns.reduce((sum, r) => sum + r, 0) /
+    dailyReturns.length;
 
-  // Calculate variance
-  const variance = dailyReturns.reduce((sum, r) => {
-    const diff = r - meanReturn;
-    return sum + (diff * diff);
-  }, 0) / dailyReturns.length;
+  const variance =
+    dailyReturns.reduce((sum, r) => {
+      const diff = r - meanReturn;
+      return sum + diff * diff;
+    }, 0) / dailyReturns.length;
 
-  // Calculate standard deviation (daily volatility)
   const dailyVolatility = Math.sqrt(variance);
 
-  // Calculate trading days per year based on actual data
-  // If we have 365 days but only 252 returns (after skipping weekends), annualize accordingly
-  const totalDays = dailyValues.length - 1; // Total day-pairs
-  const tradingDays = dailyReturns.length;   // Actual trading days (non-zero returns)
-  const tradingDaysPerYear = totalDays > 0 
-    ? Math.round((tradingDays / totalDays) * 365)
-    : TRADING_DAYS_PER_YEAR; // Default to 252 if calculation fails
+  const totalDays = dailyValues.length - 1;
+  const tradingDays = dailyReturns.length;
 
-  // Annualize volatility using calculated trading days
-  const annualizedVolatility = dailyVolatility * Math.sqrt(tradingDaysPerYear);
+  const tradingDaysPerYear =
+    totalDays > 0
+      ? Math.round((tradingDays / totalDays) * 365)
+      : TRADING_DAYS_PER_YEAR;
 
-  const volatilityPercent = (annualizedVolatility * 100) || 0;
+  const annualizedVolatility =
+    dailyVolatility * Math.sqrt(tradingDaysPerYear);
 
-  return volatilityPercent;
+  return (annualizedVolatility * 100) || 0;
 }
 
 /**
- * Calculate daily returns from portfolio values
- * Daily Return = (Today's Value / Yesterday's Value) - 1
- * 
- * Simpler than SIP since lumpsum has no intermediate cash flows
- * Just pure market returns on the invested capital
- * 
- * Skips forward-filled days (weekends/holidays) where value didn't change
- * This prevents artificially low volatility from zero returns on non-trading days
+ * Daily Return = (Today Value / Yesterday Value) - 1
  */
-function calculateDailyReturns(dailyValues: DailyPortfolioValue[]): number[] {
+function calculateDailyReturns(
+  dailyValues: DailyPortfolioValue[]
+): number[] {
+
   const returns: number[] = [];
 
   for (let i = 1; i < dailyValues.length; i++) {
+
     const previousValue = dailyValues[i - 1].totalValue;
     const currentValue = dailyValues[i].totalValue;
 
     if (previousValue > 0) {
-      // Skip forward-filled days (weekends/holidays) where value didn't change
-      // This prevents artificially low volatility from zero returns on non-trading days
+
+      // Skip weekends/holidays forward filled values
       if (currentValue === previousValue) {
         continue;
       }
-      
-      const dailyReturn = (currentValue / previousValue) - 1;
+
+      const dailyReturn =
+        (currentValue / previousValue) - 1;
+
       returns.push(dailyReturn);
     }
   }

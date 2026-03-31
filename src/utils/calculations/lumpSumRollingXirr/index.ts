@@ -319,14 +319,14 @@ function calculateXirr(
   startDate: Date,
   endDate: Date
 ): number | null {
-  try {
-    return xirr([
-      { amount: -investmentAmount, when: startDate },
-      { amount: totalValue, when: endDate }
-    ]);
-  } catch {
-    return null;
-  }
+
+  if (investmentAmount === 0) return null;
+
+  // Yahoo Finance Return %
+  const returnPercent = (totalValue - investmentAmount) / investmentAmount;
+
+  return returnPercent;
+
 }
 
 /**
