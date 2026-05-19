@@ -104,8 +104,14 @@ class YahooFinanceService {
         if (price === null || price === undefined) continue;
 
         const date = new Date(timestamps[i] * 1000);
+        // FX pairs (e.g. USDINR=X) use midnight UK time as the daily timestamp.
+        // In BST (UTC+1, late Mar–Oct), midnight BST = 23:00 UTC the previous calendar
+        // day, so UTC date extraction lands one day early. Shift +1 day only when the
+        // timestamp's UTC hour indicates a non-UTC midnight (hour >= 12).
+        const utcDay = date.getUTCDate();
+        const dayShift = symbol.endsWith('=X') && date.getUTCHours() >= 12 ? 1 : 0;
         processed.push({
-          date: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())),
+          date: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), utcDay + dayShift)),
           nav: price,
         });
       }
