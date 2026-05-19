@@ -22,6 +22,7 @@ export function AppHeader(): React.ReactElement {
   const isNetworthEstimator = location.pathname === '/networth-estimator';
   const isNetworthEstimatorCopy = location.pathname === '/networth-estimator-copy';
   const isNetworthGold = location.pathname === '/networth-gold';
+  const isNetworthCurrency = location.pathname === '/networth-currency';
 
   const overrides = useMemo(
     () => ({
@@ -37,29 +38,35 @@ export function AppHeader(): React.ReactElement {
           color: theme.colors.contentPrimary,
           fontWeight: 700,
           letterSpacing: '-0.03em',
+          whiteSpace: 'nowrap' as const,
+          flexShrink: 0,
         },
       },
       DesktopMenu: {
         style: {
           alignItems: 'center',
-          flexWrap: 'wrap' as const,
-          rowGap: theme.sizing.scale200,
+          flexWrap: 'nowrap' as const,
+          flex: '1',
+          minWidth: 0,
         },
       },
       DesktopMenuContainer: {
         style: {
-          flexWrap: 'wrap' as const,
-          rowGap: theme.sizing.scale200,
+          flexWrap: 'nowrap' as const,
+          flex: '1',
+          minWidth: 0,
         },
       },
       PrimaryMenuContainer: {
         style: {
-          flexWrap: 'wrap' as const,
+          flexWrap: 'nowrap' as const,
           justifyContent: 'flex-end',
           alignItems: 'center',
-          rowGap: theme.sizing.scale200,
-          columnGap: theme.sizing.scale100,
-          paddingInlineEnd: theme.sizing.scale600,
+          columnGap: '2px',
+          paddingInlineEnd: theme.sizing.scale400,
+          flex: '1',
+          minWidth: 0,
+          overflowX: 'auto' as const,
         },
       },
       MainMenuItem: {
@@ -67,12 +74,14 @@ export function AppHeader(): React.ReactElement {
           color: theme.colors.contentPrimary,
           borderBottomWidth: 0,
           borderBottomStyle: 'none',
-          marginLeft: theme.sizing.scale300,
-          marginRight: theme.sizing.scale300,
-          paddingTop: theme.sizing.scale300,
-          paddingBottom: theme.sizing.scale300,
-          paddingLeft: theme.sizing.scale400,
-          paddingRight: theme.sizing.scale400,
+          marginLeft: '1px',
+          marginRight: '1px',
+          paddingTop: theme.sizing.scale200,
+          paddingBottom: theme.sizing.scale200,
+          paddingLeft: theme.sizing.scale300,
+          paddingRight: theme.sizing.scale300,
+          fontSize: '13px',
+          whiteSpace: 'nowrap' as const,
           borderRadius: theme.borders.radius300,
           backgroundColor: $active ? theme.colors.backgroundTertiary : 'transparent',
           fontWeight: $active ? 700 : 500,
@@ -110,6 +119,7 @@ export function AppHeader(): React.ReactElement {
         { label: 'Net worth', active: isNetworthEstimator },
         { label: 'Networth AI', active: isNetworthEstimatorCopy },
         { label: 'Net worth GOLD', active: isNetworthGold },
+        { label: 'NetworthCurrencyView', active: isNetworthCurrency },
         { label: 'Help', info: { id: 'help' } },
       ]}
       onMainItemSelect={(item) => {
@@ -140,7 +150,10 @@ export function AppHeader(): React.ReactElement {
             break;
           case 'Net worth GOLD':
             navigate('/networth-gold');
-              break;  
+            break;
+          case 'NetworthCurrencyView':
+            navigate('/networth-currency');
+            break;
           case 'Help':
             openHelp('getting-started');
             break;

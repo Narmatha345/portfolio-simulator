@@ -10,6 +10,7 @@ import LumpsumSipCompare from './pages/LumpsumSipCompare';
 import { NetworthEstimatorCopyPage } from "./pages/NetworthEstimatorCopyPage";
 import { NetworthEstimatorPage } from "./pages/NetworthEstimatorPage";
 import NetworthGoldPage from "./pages/NetworthGoldPage"; // ✅ FIXED (default import)
+import NetworthCurrencyPage from "./pages/NetworthCurrencyPage";
 import { StockPriceTab } from "./pages/StockPriceTab";
 import { StockSipTab } from "./pages/StockSipTab";
 import { StockSwpTab } from "./pages/StockSwpTab";
@@ -42,6 +43,8 @@ const AppContent: React.FC = () => {
 
   // ✅ NEW GOLD PAGE
   const isNetworthGold = location.pathname === "/networth-gold";
+
+  const isNetworthCurrency = location.pathname === "/networth-currency";
 
   return (
     <Container>
@@ -78,6 +81,7 @@ const AppContent: React.FC = () => {
 
           {/* ✅ NEW ROUTE */}
           <Route path="/networth-gold" element={null} />
+          <Route path="/networth-currency" element={null} />
 
           <Route path="/portfolio" element={<Navigate to="/stock-price" replace />} />
         </Routes>
@@ -118,6 +122,10 @@ const AppContent: React.FC = () => {
           {/* ✅ GOLD PAGE RENDER */}
           <Block display={isNetworthGold ? "block" : "none"} flex="1">
             <NetworthGoldPage />
+          </Block>
+
+          <Block display={isNetworthCurrency ? "block" : "none"} flex="1">
+            <NetworthCurrencyPage />
           </Block>
         </>
       </Block>
