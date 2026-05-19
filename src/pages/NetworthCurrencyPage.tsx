@@ -206,8 +206,15 @@ export default function NetworthCurrencyPage(): React.ReactElement {
       const stockMap = new Map<string, number>(
         stockData.map((d) => [formatDateKey(new Date(d.date)), d.nav])
       );
+      // Yahoo Finance FX pairs (e.g. USDINR=X) are timestamped at 23:00 UTC,
+      // causing getUTCDate() to return the previous calendar day. Shift +1 day to match
+      // the date the website labels each rate under.
       const fxMap = new Map<string, number>(
-        fxData.map((d) => [formatDateKey(new Date(d.date)), d.nav])
+        fxData.map((d) => {
+          const corrected = new Date(d.date);
+          corrected.setUTCDate(corrected.getUTCDate() + 1);
+          return [formatDateKey(corrected), d.nav];
+        })
       );
 
       // Sorted FX dates for nearest-neighbour lookup
