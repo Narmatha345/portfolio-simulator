@@ -23,6 +23,7 @@ export function AppHeader(): React.ReactElement {
   const isNetworthEstimatorCopy = location.pathname === '/networth-estimator-copy';
   const isNetworthGold = location.pathname === '/networth-gold';
   const isNetworthCurrency = location.pathname === '/networth-currency';
+  const isCrossMarketCompare = location.pathname === '/cross-market-compare';
 
   const overrides = useMemo(
     () => ({
@@ -60,7 +61,7 @@ export function AppHeader(): React.ReactElement {
       PrimaryMenuContainer: {
         style: {
           flexWrap: 'nowrap' as const,
-          justifyContent: 'flex-end',
+          justifyContent: 'flex-start',
           alignItems: 'center',
           columnGap: '2px',
           paddingInlineEnd: theme.sizing.scale400,
@@ -117,9 +118,10 @@ export function AppHeader(): React.ReactElement {
         { label: 'Weekly High/Low', active: isWeeklyHighLow },
         { label: 'Compare', active: isCompareTab },
         { label: 'Net worth', active: isNetworthEstimator },
-        { label: 'Networth AI', active: isNetworthEstimatorCopy },
+        { label: 'Net worth AI', active: isNetworthEstimatorCopy },
         { label: 'Net worth GOLD', active: isNetworthGold },
-        { label: 'NetworthCurrencyView', active: isNetworthCurrency },
+        { label: 'FX View', active: isNetworthCurrency },
+        { label: 'Cross-Market', active: isCrossMarketCompare },
         { label: 'Help', info: { id: 'help' } },
       ]}
       onMainItemSelect={(item) => {
@@ -145,14 +147,17 @@ export function AppHeader(): React.ReactElement {
           case 'Net worth':
             navigate('/networth-estimator');
             break;
-          case 'Networth AI':
+          case 'Net worth AI':
             navigate('/networth-estimator-copy');
             break;
           case 'Net worth GOLD':
             navigate('/networth-gold');
             break;
-          case 'NetworthCurrencyView':
+          case 'FX View':
             navigate('/networth-currency');
+            break;
+          case 'Cross-Market':
+            navigate('/cross-market-compare');
             break;
           case 'Help':
             openHelp('getting-started');
