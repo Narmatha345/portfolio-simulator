@@ -12,6 +12,7 @@ import { NetworthEstimatorPage } from "./pages/NetworthEstimatorPage";
 import NetworthGoldPage from "./pages/NetworthGoldPage"; // ✅ FIXED (default import)
 import NetworthCurrencyPage from "./pages/NetworthCurrencyPage";
 import CrossMarketComparePage from "./pages/CrossMarketComparePage";
+import SipCrossMarketComparePage from "./pages/SipCrossMarketComparePage";
 import { StockPriceTab } from "./pages/StockPriceTab";
 import { StockSipTab } from "./pages/StockSipTab";
 import { StockSwpTab } from "./pages/StockSwpTab";
@@ -47,6 +48,7 @@ const AppContent: React.FC = () => {
 
   const isNetworthCurrency = location.pathname === "/networth-currency";
   const isCrossMarketCompare = location.pathname === "/cross-market-compare";
+  const isSipCrossMarket = location.pathname === "/sip-cross-market";
 
   return (
     <Container>
@@ -85,6 +87,7 @@ const AppContent: React.FC = () => {
           <Route path="/networth-gold" element={null} />
           <Route path="/networth-currency" element={null} />
           <Route path="/cross-market-compare" element={null} />
+          <Route path="/sip-cross-market" element={null} />
 
           <Route path="/portfolio" element={<Navigate to="/stock-price" replace />} />
         </Routes>
@@ -133,6 +136,10 @@ const AppContent: React.FC = () => {
 
           <Block display={isCrossMarketCompare ? "block" : "none"} flex="1">
             <CrossMarketComparePage />
+          </Block>
+
+          <Block display={isSipCrossMarket ? "block" : "none"} flex="1">
+            <SipCrossMarketComparePage />
           </Block>
         </>
       </Block>

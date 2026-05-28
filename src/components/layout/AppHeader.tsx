@@ -24,6 +24,7 @@ export function AppHeader(): React.ReactElement {
   const isNetworthGold = location.pathname === '/networth-gold';
   const isNetworthCurrency = location.pathname === '/networth-currency';
   const isCrossMarketCompare = location.pathname === '/cross-market-compare';
+  const isSipCrossMarket = location.pathname === '/sip-cross-market';
 
   const overrides = useMemo(
     () => ({
@@ -122,6 +123,7 @@ export function AppHeader(): React.ReactElement {
         { label: 'Net worth GOLD', active: isNetworthGold },
         { label: 'FX View', active: isNetworthCurrency },
         { label: 'Cross-Market', active: isCrossMarketCompare },
+        { label: 'SIP Cross-Market', active: isSipCrossMarket },
         { label: 'Help', info: { id: 'help' } },
       ]}
       onMainItemSelect={(item) => {
@@ -158,6 +160,9 @@ export function AppHeader(): React.ReactElement {
             break;
           case 'Cross-Market':
             navigate('/cross-market-compare');
+            break;
+          case 'SIP Cross-Market':
+            navigate('/sip-cross-market');
             break;
           case 'Help':
             openHelp('getting-started');
