@@ -48,19 +48,15 @@ interface PortfolioDef {
 interface ResultData {
   a_val: ValuePoint[];
   b_val: ValuePoint[];
-  a_val_sec: ValuePoint[];
-  b_val_sec: ValuePoint[];
-  secCurrency: string | null;
+  secValsByCurrency: Record<string, { a: ValuePoint[]; b: ValuePoint[] }>;
+  summaryRowsA: SummaryRow[];
+  summaryRowsB: SummaryRow[];
   totalInvestedA: number;
   totalInvestedB: number;
-  totalInvestedA_sec: number; // invested total in secCurrency (sum of monthly FX conversions)
-  totalInvestedB_sec: number;
   finalA: number;
   finalB: number;
   returnA: number;
   returnB: number;
-  returnA_sec: number;
-  returnB_sec: number;
   xirrA: number | null;
   xirrB: number | null;
 }
@@ -75,9 +71,39 @@ function inferCurrency(ticker: string, ic: string): string {
   if (t.endsWith('.HK')) return 'HKD';
   if (t.endsWith('.AX')) return 'AUD';
   if (t.endsWith('.TO') || t.endsWith('.V')) return 'CAD';
+  if (t.endsWith('.SW')) return 'CHF';
+  if (t.endsWith('.ST')) return 'SEK';
+  if (t.endsWith('.OL')) return 'NOK';
+  if (t.endsWith('.CO')) return 'DKK';
+  if (t.endsWith('.NZ')) return 'NZD';
+  if (t.endsWith('.SA')) return 'BRL';
+  if (t.endsWith('.MX')) return 'MXN';
+  if (t.endsWith('.JK')) return 'IDR';
+  if (t.endsWith('.BK')) return 'THB';
+  if (t.endsWith('.KL')) return 'MYR';
+  if (t.endsWith('.PS')) return 'PHP';
+  if (t.endsWith('.IS')) return 'TRY';
+  if (t.endsWith('.JO')) return 'ZAR';
+  if (t.endsWith('.TA')) return 'ILS';
+  if (t.endsWith('.SR')) return 'SAR';
+  if (t.endsWith('.QA')) return 'QAR';
+  if (t.endsWith('.AE') || t.endsWith('.AD')) return 'AED';
+  if (t.endsWith('.WA')) return 'PLN';
+  if (t.endsWith('.PR')) return 'CZK';
+  if (t.endsWith('.BD')) return 'HUF';
+  if (t.endsWith('.BA')) return 'ARS';
+  if (t.endsWith('.SN')) return 'CLP';
+  if (t.endsWith('.LM')) return 'PEN';
+  if (t.endsWith('.CR')) return 'COP';
+  if (t.endsWith('.NG')) return 'NGN';
+  if (t.endsWith('.EG') || t.endsWith('.CA')) return 'EGP';
   if (
     t.endsWith('.DE') || t.endsWith('.PA') || t.endsWith('.AS') ||
-    t.endsWith('.MI') || t.endsWith('.MC') || t.endsWith('.BR')
+    t.endsWith('.MI') || t.endsWith('.MC') || t.endsWith('.BR') ||
+    t.endsWith('.HE') || t.endsWith('.AT') || t.endsWith('.LS') ||
+    t.endsWith('.VI') || t.endsWith('.IR') || t.endsWith('.F')  ||
+    t.endsWith('.BE') || t.endsWith('.DU') || t.endsWith('.MU') ||
+    t.endsWith('.TI') || t.endsWith('.NX')
   ) return 'EUR';
   if (t.endsWith('.SI')) return 'SGD';
   if (t.endsWith('.KS') || t.endsWith('.KQ')) return 'KRW';
@@ -89,10 +115,13 @@ function inferCurrency(ticker: string, ic: string): string {
 // ─── Currency helpers ─────────────────────────────────────────────────────────
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$', EUR: '€', GBP: '£', INR: '₹', JPY: '¥', CNY: '¥',
-  AUD: 'A$', CAD: 'C$', CHF: 'Fr', HKD: 'HK$', SGD: 'S$',
-  KRW: '₩', BRL: 'R$', MXN: 'MX$', ZAR: 'R', TWD: 'NT$',
-  THB: '฿', IDR: 'Rp', MYR: 'RM', PHP: '₱', TRY: '₺', NGN: '₦',
+  USD: '$',    EUR: '€',    GBP: '£',    INR: '₹',    JPY: '¥',    CNY: '¥',
+  AUD: 'A$',   CAD: 'C$',   CHF: 'Fr',   HKD: 'HK$',  SGD: 'S$',   NZD: 'NZ$',
+  KRW: '₩',   BRL: 'R$',   MXN: 'MX$',  ZAR: 'R',    TWD: 'NT$',  SEK: 'kr',
+  NOK: 'kr',   DKK: 'kr',   THB: '฿',   IDR: 'Rp',   MYR: 'RM',   PHP: '₱',
+  TRY: '₺',   NGN: '₦',   ILS: '₪',   PLN: 'zł',   CZK: 'Kč',  HUF: 'Ft',
+  SAR: '﷼',   QAR: '﷼',   AED: 'د.إ', ARS: 'ARS',  CLP: 'CLP',  PEN: 'PEN',
+  COP: 'COP',  EGP: 'E£',   KES: 'KSh',
 };
 
 function getCurrencySymbol(code: string): string {
@@ -207,19 +236,17 @@ const dateInputStyle: React.CSSProperties = {
 };
 
 // ─── PortfolioSection ─────────────────────────────────────────────────────────
-// Row layout: Ticker | Ticker Currency | {icSym}/mo | Amount | Remove
+// Row layout: Ticker | Ticker Currency | {tickerCcySym}/mo | Amount | Remove
 
 function PortfolioSection({
   portfolio,
   borderColor,
-  icSym,
   onUpdate,
   onAddRow,
   onRemoveRow,
 }: {
   portfolio: PortfolioDef;
   borderColor: string;
-  icSym: string;
   onUpdate: (id: string, field: 'ticker' | 'amount' | 'currency', value: string) => void;
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
@@ -265,7 +292,12 @@ function PortfolioSection({
               size="compact"
               overrides={{ Root: { style: { width: '95px', minWidth: '80px' } } }}
             />
-            <LabelMedium marginBottom="0" marginTop="0">{icSym}/mo</LabelMedium>
+            <LabelMedium marginBottom="0" marginTop="0">
+              {getCurrencySymbol(
+                entry.currency.trim().toUpperCase() ||
+                inferCurrency(entry.ticker.trim().toUpperCase(), 'USD')
+              )}/mo
+            </LabelMedium>
             <Input
               value={entry.amount}
               onChange={(e) =>
@@ -295,30 +327,18 @@ function PortfolioSection({
 
 // ─── PortfolioSummaryCard ─────────────────────────────────────────────────────
 
+interface SummaryRow { label: string; currency: string; invested: number; finalValue: number; returnPct: number }
+
 function PortfolioSummaryCard({
   label,
   color,
-  currency,
-  invested,
-  finalValue,
-  returnPct,
+  rows,
   xirrVal,
-  secCurrency,
-  finalValueSec,
-  investedSec,
-  returnPctSec,
 }: {
   label: string;
   color: string;
-  currency: string;
-  invested: number;
-  finalValue: number;
-  returnPct: number;
+  rows: SummaryRow[];
   xirrVal: number | null;
-  secCurrency?: string;
-  finalValueSec?: number;
-  investedSec?: number;
-  returnPctSec?: number;
 }) {
   return (
     <Block
@@ -362,41 +382,17 @@ function PortfolioSummaryCard({
         <LabelSmall color="contentSecondary" $style={{ fontWeight: 600, textAlign: 'right' }}>Final Value</LabelSmall>
         <LabelSmall color="contentSecondary" $style={{ fontWeight: 600, textAlign: 'right' }}>Return</LabelSmall>
 
-        <LabelSmall color="contentSecondary">{currency}</LabelSmall>
-        <LabelSmall $style={{ textAlign: 'right' }}>{formatAmount(invested, currency)}</LabelSmall>
-        <LabelSmall $style={{ fontWeight: 700, textAlign: 'right' }}>{formatAmount(finalValue, currency)}</LabelSmall>
-        <LabelSmall
-          $style={{
-            fontWeight: 700,
-            textAlign: 'right',
-            color: returnPct >= 0 ? '#16a34a' : '#dc2626',
-          }}
-        >
-          {formatReturn(returnPct)}
-        </LabelSmall>
-
-        {secCurrency != null && finalValueSec != null && (
-          <>
-            <LabelSmall color="contentSecondary">{secCurrency}</LabelSmall>
-            <LabelSmall $style={{ textAlign: 'right' }}>
-              {investedSec != null ? formatAmount(investedSec, secCurrency) : '—'}
-            </LabelSmall>
-            <LabelSmall $style={{ fontWeight: 700, textAlign: 'right' }}>
-              {formatAmount(finalValueSec, secCurrency)}
-            </LabelSmall>
-            <LabelSmall
-              $style={{
-                fontWeight: 700,
-                textAlign: 'right',
-                color: returnPctSec != null
-                  ? returnPctSec >= 0 ? '#16a34a' : '#dc2626'
-                  : '#9ca3af',
-              }}
-            >
-              {returnPctSec != null ? formatReturn(returnPctSec) : '—'}
-            </LabelSmall>
-          </>
-        )}
+        {rows.flatMap((row) => [
+          <LabelSmall key={`${row.label}-ccy`} color="contentSecondary">{row.label}</LabelSmall>,
+          <LabelSmall key={`${row.label}-inv`} $style={{ textAlign: 'right' }}>{formatAmount(row.invested, row.currency)}</LabelSmall>,
+          <LabelSmall key={`${row.label}-fin`} $style={{ fontWeight: 700, textAlign: 'right' }}>{formatAmount(row.finalValue, row.currency)}</LabelSmall>,
+          <LabelSmall
+            key={`${row.label}-ret`}
+            $style={{ fontWeight: 700, textAlign: 'right', color: row.returnPct >= 0 ? '#16a34a' : '#dc2626' }}
+          >
+            {formatReturn(row.returnPct)}
+          </LabelSmall>,
+        ])}
       </Block>
 
       {xirrVal != null && (
@@ -641,11 +637,7 @@ const INITIAL_PORTFOLIOS: PortfolioDef[] = [
   { id: 'B', name: 'Portfolio B', entries: [{ id: '2', ticker: '', amount: '', currency: '' }] },
 ];
 
-export default function SipCrossMarketComparePage({
-  defaultInvestCurrency = 'USD',
-}: {
-  defaultInvestCurrency?: string;
-} = {}): React.ReactElement {
+export default function SipCrossMarketComparePage(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [portfolios, setPortfolios] = useState<PortfolioDef[]>(() => {
@@ -663,9 +655,6 @@ export default function SipCrossMarketComparePage({
     ];
   });
 
-  const [investCurrency, setInvestCurrency] = useState(
-    () => searchParams.get('ic') ?? defaultInvestCurrency,
-  );
   const [startMonth, setStartMonth] = useState(() => searchParams.get('startMonth') ?? defaultStartMonth());
   const [endMonth, setEndMonth] = useState(() => searchParams.get('endMonth') ?? defaultEndMonth());
 
@@ -739,8 +728,6 @@ export default function SipCrossMarketComparePage({
       return;
     }
 
-    const ic = investCurrency.trim().toUpperCase() || 'USD';
-
     // currency is optional — inferred from ticker suffix if blank (e.g. .NS → INR)
     const validA = portfolios[0].entries.filter(
       (e) => e.ticker.trim() && parseFloat(e.amount) > 0,
@@ -772,9 +759,12 @@ export default function SipCrossMarketComparePage({
       const newTickerCurrencyMap: Record<string, string> = {};
       [...validA, ...validB].forEach((e) => {
         const ticker = e.ticker.trim().toUpperCase();
-        const tc = e.currency.trim().toUpperCase() || inferCurrency(ticker, ic);
+        const tc = e.currency.trim().toUpperCase() || inferCurrency(ticker, 'USD');
         newTickerCurrencyMap[ticker] = tc;
       });
+
+      // All calculations and summary always in USD; native currencies shown in secondary charts
+      const ic = 'USD';
 
       // Fetch all stock prices
       const allTickers = [...new Set([
@@ -860,13 +850,11 @@ export default function SipCrossMarketComparePage({
       const months = getMonthsBetween(startMonth, endMonth);
       const endDate = new Date(endDateStr + 'T23:59:59Z');
 
-      // Determine secondary display currency before loops so we can track sec invested
-      const secCurrency = foreignCurrencies.length > 0 ? foreignCurrencies[0] : null;
-
       // ── Portfolio A SIP ────────────────────────────────────────────────────
       const cumUnitsA: Record<string, number> = {};
       let totalInvestedA = 0;
-      let totalInvestedA_sec = 0; // sum of monthly investments converted to secCurrency at buy date
+      const investedByTcA: Record<string, number> = {};
+      const investedByTcA_usd: Record<string, number> = {};
       const txA: Array<{ amount: number; when: Date }> = [];
       const a_val: ValuePoint[] = [];
 
@@ -879,19 +867,18 @@ export default function SipCrossMarketComparePage({
         validA.forEach((e) => {
           const ticker = e.ticker.trim().toUpperCase();
           const tc = newTickerCurrencyMap[ticker] ?? ic;
-          const monthly = parseFloat(e.amount) || 0;
+          const monthly = parseFloat(e.amount) || 0; // amount is in tc (ticker's native currency)
           const data = byTickerRaw[ticker];
           if (!data || data.length === 0 || monthly <= 0) return;
-          const fxBuy = getNearestFxForward(tc, investDateStr);
-          const monthlyInTc = monthly * fxBuy;
+          const fxBuy = getNearestFxForward(tc, investDateStr); // tc per 1 ic
+          const monthlyInIc = monthly / fxBuy; // convert tc → ic for display/XIRR (fxBuy=1 when tc=ic)
           const price = getNextAvailablePrice(data, investDateStr);
           if (price > 0) {
-            cumUnitsA[ticker] = (cumUnitsA[ticker] ?? 0) + monthlyInTc / price;
-            totalInvestedA += monthly;
-            txA.push({ amount: -monthly, when: investDate });
-            if (secCurrency) {
-              totalInvestedA_sec += monthly * getNearestFxForward(secCurrency, investDateStr);
-            }
+            cumUnitsA[ticker] = (cumUnitsA[ticker] ?? 0) + monthly / price;
+            totalInvestedA += monthlyInIc;
+            txA.push({ amount: -monthlyInIc, when: investDate });
+            investedByTcA[tc] = (investedByTcA[tc] ?? 0) + monthly;
+            investedByTcA_usd[tc] = (investedByTcA_usd[tc] ?? 0) + monthlyInIc;
           }
         });
 
@@ -910,7 +897,8 @@ export default function SipCrossMarketComparePage({
       // ── Portfolio B SIP ────────────────────────────────────────────────────
       const cumUnitsB: Record<string, number> = {};
       let totalInvestedB = 0;
-      let totalInvestedB_sec = 0;
+      const investedByTcB: Record<string, number> = {};
+      const investedByTcB_usd: Record<string, number> = {};
       const txB: Array<{ amount: number; when: Date }> = [];
       const b_val: ValuePoint[] = [];
 
@@ -923,19 +911,18 @@ export default function SipCrossMarketComparePage({
         validB.forEach((e) => {
           const ticker = e.ticker.trim().toUpperCase();
           const tc = newTickerCurrencyMap[ticker] ?? ic;
-          const monthly = parseFloat(e.amount) || 0;
+          const monthly = parseFloat(e.amount) || 0; // amount is in tc (ticker's native currency)
           const data = byTickerRaw[ticker];
           if (!data || data.length === 0 || monthly <= 0) return;
-          const fxBuy = getNearestFxForward(tc, investDateStr);
-          const monthlyInTc = monthly * fxBuy;
+          const fxBuy = getNearestFxForward(tc, investDateStr); // tc per 1 ic
+          const monthlyInIc = monthly / fxBuy; // convert tc → ic for display/XIRR (fxBuy=1 when tc=ic)
           const price = getNextAvailablePrice(data, investDateStr);
           if (price > 0) {
-            cumUnitsB[ticker] = (cumUnitsB[ticker] ?? 0) + monthlyInTc / price;
-            totalInvestedB += monthly;
-            txB.push({ amount: -monthly, when: investDate });
-            if (secCurrency) {
-              totalInvestedB_sec += monthly * getNearestFxForward(secCurrency, investDateStr);
-            }
+            cumUnitsB[ticker] = (cumUnitsB[ticker] ?? 0) + monthly / price;
+            totalInvestedB += monthlyInIc;
+            txB.push({ amount: -monthlyInIc, when: investDate });
+            investedByTcB[tc] = (investedByTcB[tc] ?? 0) + monthly;
+            investedByTcB_usd[tc] = (investedByTcB_usd[tc] ?? 0) + monthlyInIc;
           }
         });
 
@@ -958,21 +945,56 @@ export default function SipCrossMarketComparePage({
       const xirrA = calcXirr(txA, finalA, endDate);
       const xirrB = calcXirr(txB, finalB, endDate);
 
-      // Secondary currency series (e.g. INR): ic value × fx at month-end
-      const a_val_sec: ValuePoint[] = [];
-      const b_val_sec: ValuePoint[] = [];
-      if (secCurrency && newFxDataMap[secCurrency]) {
+      // Build per-currency comparison series + invested totals for all foreign currencies
+      const secValsByCurrency: Record<string, { a: ValuePoint[]; b: ValuePoint[] }> = {};
+      for (const fc of foreignCurrencies) {
+        if (!newFxDataMap[fc]) continue;
+        const aVals: ValuePoint[] = [];
+        const bVals: ValuePoint[] = [];
         months.forEach((monthStr, idx) => {
-          const fx = getNearestFxForward(secCurrency, monthToEndDate(monthStr));
-          a_val_sec.push({ date: a_val[idx].date, value: a_val[idx].value * fx });
-          b_val_sec.push({ date: b_val[idx].date, value: b_val[idx].value * fx });
+          const fx = getNearestFxForward(fc, monthToEndDate(monthStr));
+          aVals.push({ date: a_val[idx].date, value: a_val[idx].value * fx });
+          bVals.push({ date: b_val[idx].date, value: b_val[idx].value * fx });
         });
+        secValsByCurrency[fc] = { a: aVals, b: bVals };
       }
 
-      const finalA_sec = a_val_sec.at(-1)?.value ?? 0;
-      const finalB_sec = b_val_sec.at(-1)?.value ?? 0;
-      const returnA_sec = totalInvestedA_sec > 0 ? ((finalA_sec - totalInvestedA_sec) / totalInvestedA_sec) * 100 : 0;
-      const returnB_sec = totalInvestedB_sec > 0 ? ((finalB_sec - totalInvestedB_sec) / totalInvestedB_sec) * 100 : 0;
+      // Per-currency final values in USD: cumUnits × sell price ÷ FX rate
+      const lastEndDateStr = monthToEndDate(endMonth);
+      const finalByTcA_usd: Record<string, number> = {};
+      Object.entries(cumUnitsA).forEach(([ticker, units]) => {
+        const data = byTickerRaw[ticker];
+        if (!data) return;
+        const tc = newTickerCurrencyMap[ticker] ?? ic;
+        const priceNative = units * getNextAvailablePrice(data, lastEndDateStr);
+        const fxSell = getNearestFxForward(tc, lastEndDateStr); // tc per 1 USD (returns 1 when tc=USD)
+        finalByTcA_usd[tc] = (finalByTcA_usd[tc] ?? 0) + priceNative / fxSell;
+      });
+      const finalByTcB_usd: Record<string, number> = {};
+      Object.entries(cumUnitsB).forEach(([ticker, units]) => {
+        const data = byTickerRaw[ticker];
+        if (!data) return;
+        const tc = newTickerCurrencyMap[ticker] ?? ic;
+        const priceNative = units * getNextAvailablePrice(data, lastEndDateStr);
+        const fxSell = getNearestFxForward(tc, lastEndDateStr);
+        finalByTcB_usd[tc] = (finalByTcB_usd[tc] ?? 0) + priceNative / fxSell;
+      });
+
+      // Build summary rows: label = native currency, currency = USD, all values in USD
+      const buildSummaryRows = (
+        invUsd: Record<string, number>,
+        finUsd: Record<string, number>,
+      ): SummaryRow[] =>
+        [...new Set([...Object.keys(invUsd), ...Object.keys(finUsd)])]
+          .sort((a, b) => (a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)))
+          .map((tc) => {
+            const inv = invUsd[tc] ?? 0;
+            const fin = finUsd[tc] ?? 0;
+            return { label: tc, currency: 'USD', invested: inv, finalValue: fin, returnPct: inv > 0 ? ((fin - inv) / inv) * 100 : 0 };
+          });
+
+      const summaryRowsA = buildSummaryRows(investedByTcA_usd, finalByTcA_usd);
+      const summaryRowsB = buildSummaryRows(investedByTcB_usd, finalByTcB_usd);
 
       // Persist to URL
       const entriesToStr = (entries: PortfolioEntry[]) =>
@@ -997,12 +1019,11 @@ export default function SipCrossMarketComparePage({
       setTickersB(validB.map((e) => e.ticker.trim().toUpperCase()));
       setLoadedMeta({ ic });
       setResult({
-        a_val, b_val, a_val_sec, b_val_sec, secCurrency,
+        a_val, b_val, secValsByCurrency,
         totalInvestedA, totalInvestedB,
-        totalInvestedA_sec, totalInvestedB_sec,
         finalA, finalB, returnA, returnB,
-        returnA_sec, returnB_sec,
         xirrA, xirrB,
+        summaryRowsA, summaryRowsB,
       });
     } catch (err) {
       console.error(err);
@@ -1010,36 +1031,19 @@ export default function SipCrossMarketComparePage({
     } finally {
       setLoading(false);
     }
-  }, [portfolios, investCurrency, startMonth, endMonth, isRangeInvalid, setSearchParams]);
+  }, [portfolios, startMonth, endMonth, isRangeInvalid, setSearchParams]);
 
   const hasResults = result !== null && loadedMeta !== null;
-  const icSym = getCurrencySymbol(investCurrency.trim().toUpperCase() || 'USD');
 
   return (
     <Block position="relative">
       <LoadingOverlay active={loading} />
 
       <PageIntro title="SIP Cross-Market Compare">
-        Invest the same monthly amount across two portfolios in different markets. Enter a shared <strong>Investment Currency</strong> (e.g. USD). The <strong>Ticker CCY</strong> field auto-detects from the ticker suffix (e.g. GOLDBEES.NS → INR, AAPL → USD) — override only if needed. FX conversion is applied automatically.
+        Invest a monthly amount across two portfolios in different markets. The <strong>Ticker CCY</strong> auto-detects from the ticker suffix (e.g. GOLDBEES.NS → INR, AAPL → USD) — enter your monthly amount in that currency. Override CCY only if needed.
       </PageIntro>
 
       <PageCard>
-        {/* Shared investment currency */}
-        <Block marginBottom="scale600">
-          <LabelSmall marginBottom="scale200">Investment Currency</LabelSmall>
-          <Block display="flex" alignItems="center" gridGap="scale300">
-            <Input
-              value={investCurrency}
-              placeholder="USD"
-              onChange={(e) => setInvestCurrency((e.target as HTMLInputElement).value.toUpperCase())}
-              overrides={{ Root: { style: { maxWidth: '120px' } } }}
-            />
-            <LabelSmall $style={{ color: '#9ca3af' }}>
-              The amount per row is in this currency. Ticker Currency = the stock&apos;s native market (e.g. INR for BSE/NSE, USD for NYSE/NASDAQ).
-            </LabelSmall>
-          </Block>
-        </Block>
-
         {/* Portfolio sections */}
         <Block
           display="flex"
@@ -1056,7 +1060,6 @@ export default function SipCrossMarketComparePage({
               <PortfolioSection
                 portfolio={portfolio}
                 borderColor={PORTFOLIO_COLORS[idx]}
-                icSym={icSym}
                 onUpdate={(id, field, value) => handleUpdateEntry(portfolio.id, id, field, value)}
                 onAddRow={() => handleAddRow(portfolio.id)}
                 onRemoveRow={(id) => handleRemoveRow(portfolio.id, id)}
@@ -1116,7 +1119,7 @@ export default function SipCrossMarketComparePage({
               overrides={{ Block: { style: { borderTop: '1px solid #e5e7eb' } } }}
             />
 
-            {/* Summary cards */}
+            {/* Summary cards — one row per native currency, no FX conversion */}
             <Block
               display="grid"
               gridGap="scale400"
@@ -1128,28 +1131,14 @@ export default function SipCrossMarketComparePage({
               <PortfolioSummaryCard
                 label="Portfolio A"
                 color={CHART_COLORS[0]}
-                currency={loadedMeta!.ic}
-                invested={result!.totalInvestedA}
-                finalValue={result!.finalA}
-                returnPct={result!.returnA}
+                rows={result!.summaryRowsA}
                 xirrVal={result!.xirrA}
-                secCurrency={result!.secCurrency ?? undefined}
-                finalValueSec={result!.a_val_sec.at(-1)?.value}
-                investedSec={result!.totalInvestedA_sec > 0 ? result!.totalInvestedA_sec : undefined}
-                returnPctSec={result!.secCurrency ? result!.returnA_sec : undefined}
               />
               <PortfolioSummaryCard
                 label="Portfolio B"
                 color={CHART_COLORS[1]}
-                currency={loadedMeta!.ic}
-                invested={result!.totalInvestedB}
-                finalValue={result!.finalB}
-                returnPct={result!.returnB}
+                rows={result!.summaryRowsB}
                 xirrVal={result!.xirrB}
-                secCurrency={result!.secCurrency ?? undefined}
-                finalValueSec={result!.b_val_sec.at(-1)?.value}
-                investedSec={result!.totalInvestedB_sec > 0 ? result!.totalInvestedB_sec : undefined}
-                returnPctSec={result!.secCurrency ? result!.returnB_sec : undefined}
               />
             </Block>
 
@@ -1173,26 +1162,26 @@ export default function SipCrossMarketComparePage({
               />
             </Block>
 
-            {/* Comparison chart — secondary currency (e.g. INR) */}
-            {result!.secCurrency && result!.a_val_sec.length > 0 && (
-              <Block marginBottom="scale600">
-                <LabelMedium marginBottom="scale300">
-                  Portfolio A vs Portfolio B — valued in {result!.secCurrency}
-                </LabelMedium>
-                <HighchartsReact
-                  highcharts={Highcharts}
-                  constructorType="stockChart"
-                  options={buildChartOptions(
-                    result!.a_val_sec,
-                    result!.b_val_sec,
-                    'Portfolio A',
-                    'Portfolio B',
-                    `SIP Cross-Market Comparison (${result!.secCurrency})`,
-                    result!.secCurrency,
-                  )}
-                  immutable
-                />
-              </Block>
+            {/* Comparison charts — one per foreign currency (INR, JPY, GBP, etc.) */}
+            {Object.entries(result!.secValsByCurrency).map(([fc, { a, b }]) =>
+              a.length > 0 ? (
+                <Block key={`sec-${fc}`} marginBottom="scale600">
+                  <LabelMedium marginBottom="scale300">
+                    Portfolio A vs Portfolio B — valued in {fc}
+                  </LabelMedium>
+                  <HighchartsReact
+                    highcharts={Highcharts}
+                    constructorType="stockChart"
+                    options={buildChartOptions(
+                      a, b,
+                      'Portfolio A', 'Portfolio B',
+                      `SIP Cross-Market Comparison (${fc})`,
+                      fc,
+                    )}
+                    immutable
+                  />
+                </Block>
+              ) : null
             )}
 
             {/* Portfolio A individual stock price charts */}
