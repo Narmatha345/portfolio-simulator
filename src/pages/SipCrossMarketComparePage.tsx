@@ -45,6 +45,23 @@ interface PortfolioDef {
   entries: PortfolioEntry[];
 }
 
+interface TickerBuyDetail {
+  ticker: string;
+  buyDate: string;        // actual first trading day used for price lookup
+  buyPrice: number;       // price in native currency
+  nativeCurrency: string;
+  nativeAmount: number;   // user-entered monthly amount in tc
+  usdCashFlow: number;    // negative USD equivalent (XIRR outflow)
+}
+interface XirrRow {
+  month: string;
+  investDateXirr: string; // calendar 1st — date used in XIRR cash flow
+  buys: TickerBuyDetail[];
+  invested: number;       // total USD outflow this month
+  cumInvested: number;
+  portValue: number;      // month-end portfolio value in USD
+}
+
 interface ResultData {
   a_val: ValuePoint[];
   b_val: ValuePoint[];
@@ -59,6 +76,8 @@ interface ResultData {
   returnB: number;
   xirrA: number | null;
   xirrB: number | null;
+  monthlyBreakdownA: XirrRow[];
+  monthlyBreakdownB: XirrRow[];
 }
 
 // ─── Ticker → currency inference ─────────────────────────────────────────────
@@ -855,6 +874,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
       let totalInvestedA = 0;
       const investedByTcA: Record<string, number> = {};
       const investedByTcA_usd: Record<string, number> = {};
+      const buyDetailsA: Record<string, TickerBuyDetail[]> = {};
       const txA: Array<{ amount: number; when: Date }> = [];
       const a_val: ValuePoint[] = [];
 
@@ -879,6 +899,16 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
             txA.push({ amount: -monthlyInIc, when: investDate });
             investedByTcA[tc] = (investedByTcA[tc] ?? 0) + monthly;
             investedByTcA_usd[tc] = (investedByTcA_usd[tc] ?? 0) + monthlyInIc;
+            const actualBuyDateA = data.find((p) => formatDate(p.date) >= investDateStr);
+            if (!buyDetailsA[monthStr]) buyDetailsA[monthStr] = [];
+            buyDetailsA[monthStr].push({
+              ticker,
+              buyDate: actualBuyDateA ? formatDate(actualBuyDateA.date) : investDateStr,
+              buyPrice: price,
+              nativeCurrency: tc,
+              nativeAmount: monthly,
+              usdCashFlow: -monthlyInIc,
+            });
           }
         });
 
@@ -899,6 +929,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
       let totalInvestedB = 0;
       const investedByTcB: Record<string, number> = {};
       const investedByTcB_usd: Record<string, number> = {};
+      const buyDetailsB: Record<string, TickerBuyDetail[]> = {};
       const txB: Array<{ amount: number; when: Date }> = [];
       const b_val: ValuePoint[] = [];
 
@@ -923,6 +954,16 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
             txB.push({ amount: -monthlyInIc, when: investDate });
             investedByTcB[tc] = (investedByTcB[tc] ?? 0) + monthly;
             investedByTcB_usd[tc] = (investedByTcB_usd[tc] ?? 0) + monthlyInIc;
+            const actualBuyDateB = data.find((p) => formatDate(p.date) >= investDateStr);
+            if (!buyDetailsB[monthStr]) buyDetailsB[monthStr] = [];
+            buyDetailsB[monthStr].push({
+              ticker,
+              buyDate: actualBuyDateB ? formatDate(actualBuyDateB.date) : investDateStr,
+              buyPrice: price,
+              nativeCurrency: tc,
+              nativeAmount: monthly,
+              usdCashFlow: -monthlyInIc,
+            });
           }
         });
 
@@ -996,6 +1037,33 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
       const summaryRowsA = buildSummaryRows(investedByTcA_usd, finalByTcA_usd);
       const summaryRowsB = buildSummaryRows(investedByTcB_usd, finalByTcB_usd);
 
+      // XIRR monthly breakdown — per-ticker buy details + month-end portfolio value
+      const buildBreakdown = (
+        txList: Array<{ amount: number; when: Date }>,
+        vals: ValuePoint[],
+        monthList: string[],
+        buyDetails: Record<string, TickerBuyDetail[]>,
+      ): XirrRow[] => {
+        let cumInvested = 0;
+        return monthList.map((monthStr, idx) => {
+          const prefix = monthStr + '-';
+          const invested = -txList
+            .filter((t) => formatDate(t.when).startsWith(prefix))
+            .reduce((s, t) => s + t.amount, 0);
+          cumInvested += invested;
+          return {
+            month: monthStr,
+            investDateXirr: monthStr + '-01',
+            buys: buyDetails[monthStr] ?? [],
+            invested,
+            cumInvested,
+            portValue: vals[idx]?.value ?? 0,
+          };
+        });
+      };
+      const monthlyBreakdownA = buildBreakdown(txA, a_val, months, buyDetailsA);
+      const monthlyBreakdownB = buildBreakdown(txB, b_val, months, buyDetailsB);
+
       // Persist to URL
       const entriesToStr = (entries: PortfolioEntry[]) =>
         entries
@@ -1024,6 +1092,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
         finalA, finalB, returnA, returnB,
         xirrA, xirrB,
         summaryRowsA, summaryRowsB,
+        monthlyBreakdownA, monthlyBreakdownB,
       });
     } catch (err) {
       console.error(err);
@@ -1234,6 +1303,126 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
                   />
                 </Block>
               ))}
+
+            {/* XIRR Breakdown Table — transaction dates, amounts, cash flows, portfolio values */}
+            {(['A', 'B'] as const).map((which) => {
+              const rows  = which === 'A' ? result!.monthlyBreakdownA : result!.monthlyBreakdownB;
+              const xirr  = which === 'A' ? result!.xirrA : result!.xirrB;
+              const final = which === 'A' ? result!.finalA : result!.finalB;
+              const color = which === 'A' ? CHART_COLORS[0] : CHART_COLORS[1];
+
+              const th = (extra?: React.CSSProperties): React.CSSProperties => ({
+                padding: '6px 10px', fontSize: 11, fontWeight: 700, color: '#6b7280',
+                borderBottom: '2px solid #e5e7eb', whiteSpace: 'nowrap', ...extra,
+              });
+              const td = (extra?: React.CSSProperties): React.CSSProperties => ({
+                padding: '4px 10px', fontSize: 11, borderBottom: '1px solid #f3f4f6',
+                whiteSpace: 'nowrap', textAlign: 'right', ...extra,
+              });
+              const sepRow: React.CSSProperties = {
+                backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0',
+              };
+
+              return (
+                <Block key={`xirr-${which}`} marginBottom="scale600">
+                  <LabelMedium marginBottom="scale300" $style={{ color }}>
+                    Portfolio {which} — XIRR Cash Flow Breakdown
+                  </LabelMedium>
+                  <Block overrides={{ Block: { style: { overflowX: 'auto' } } }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f1f5f9' }}>
+                          <th style={th({ textAlign: 'left' })}>XIRR Date</th>
+                          <th style={th({ textAlign: 'left' })}>Ticker</th>
+                          <th style={th({ textAlign: 'left' })}>Actual Buy Date</th>
+                          <th style={th()}>Buy Price</th>
+                          <th style={th()}>Amount (Native)</th>
+                          <th style={th()}>Cash Flow (USD) ↓</th>
+                          <th style={th()}>Port. Value (USD)</th>
+                          <th style={th()}>Cumul. Invested</th>
+                          <th style={th()}>Gain / Loss</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.flatMap((r) => {
+                          const isLastBuy = (i: number) => i === r.buys.length - 1;
+                          const gainPct = r.cumInvested > 0
+                            ? ((r.portValue - r.cumInvested) / r.cumInvested) * 100 : 0;
+
+                          const buyRows = r.buys.map((b, i) => (
+                            <tr key={`${r.month}-${b.ticker}`}>
+                              <td style={td({ textAlign: 'left', color: '#6b7280' })}>
+                                {i === 0 ? r.investDateXirr : ''}
+                              </td>
+                              <td style={td({ textAlign: 'left', fontWeight: 600 })}>{b.ticker}</td>
+                              <td style={td({ textAlign: 'left' })}>{b.buyDate}</td>
+                              <td style={td()}>
+                                {getCurrencySymbol(b.nativeCurrency)}{b.buyPrice.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={td()}>{formatAmount(b.nativeAmount, b.nativeCurrency)}</td>
+                              <td style={td({ color: '#dc2626', fontWeight: 600 })}>
+                                −{formatAmount(Math.abs(b.usdCashFlow), 'USD')}
+                              </td>
+                              <td style={td({ fontWeight: isLastBuy(i) ? 700 : 400, color: isLastBuy(i) ? '#111827' : '#d1d5db' })}>
+                                {isLastBuy(i) ? formatAmount(r.portValue, 'USD') : '—'}
+                              </td>
+                              <td style={td({ color: isLastBuy(i) ? '#374151' : '#d1d5db' })}>
+                                {isLastBuy(i) ? formatAmount(r.cumInvested, 'USD') : '—'}
+                              </td>
+                              <td style={td({
+                                fontWeight: isLastBuy(i) ? 700 : 400,
+                                color: isLastBuy(i)
+                                  ? (gainPct >= 0 ? '#16a34a' : '#dc2626')
+                                  : '#d1d5db',
+                              })}>
+                                {isLastBuy(i) ? formatReturn(gainPct) : '—'}
+                              </td>
+                            </tr>
+                          ));
+
+                          const sepRowEl = (
+                            <tr key={`${r.month}-sep`} style={sepRow}>
+                              <td colSpan={9} style={{ padding: 0, height: 4 }} />
+                            </tr>
+                          );
+
+                          return [...buyRows, sepRowEl];
+                        })}
+
+                        {/* Final positive cash flow row */}
+                        <tr style={{ backgroundColor: '#f0fdf4', fontWeight: 700 }}>
+                          <td style={td({ textAlign: 'left', fontWeight: 700 })}>{formatDate(new Date())}</td>
+                          <td style={td({ textAlign: 'left', fontWeight: 700 })}>Final (close)</td>
+                          <td style={td({ textAlign: 'left' })}>—</td>
+                          <td style={td()}>—</td>
+                          <td style={td()}>—</td>
+                          <td style={td({ color: '#16a34a', fontWeight: 700 })}>
+                            +{formatAmount(final, 'USD')}
+                          </td>
+                          <td style={td({ fontWeight: 700 })}>{formatAmount(final, 'USD')}</td>
+                          <td style={td()}>—</td>
+                          <td style={td()}>—</td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ backgroundColor: '#eff6ff' }}>
+                          <td colSpan={9} style={{
+                            padding: '8px 12px', fontSize: 13, fontWeight: 700,
+                            color: xirr != null ? (xirr >= 0 ? '#16a34a' : '#dc2626') : '#374151',
+                          }}>
+                            XIRR (annualised): {xirr != null ? formatReturn(xirr * 100) : '—'}
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            Total Invested: {formatAmount(rows.at(-1)?.cumInvested ?? 0, 'USD')}
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            Final Value: {formatAmount(final, 'USD')}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </Block>
+                </Block>
+              );
+            })}
           </>
         )}
       </PageCard>
