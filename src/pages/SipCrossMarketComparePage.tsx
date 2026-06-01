@@ -52,6 +52,8 @@ interface TickerBuyDetail {
   nativeCurrency: string;
   nativeAmount: number;   // user-entered monthly amount in tc
   usdCashFlow: number;    // negative USD equivalent (XIRR outflow)
+  sellDate: string;       // month-end date when portfolio was valued
+  sellPrice: number;      // price in native currency at month-end
 }
 interface XirrRow {
   month: string;
@@ -212,6 +214,15 @@ function getNextAvailablePrice(data: PricePoint[], dateStr: string): number {
     if (formatDate(p.date) >= dateStr) return p.nav;
   }
   return data[data.length - 1].nav;
+}
+
+// Returns both price and actual trading date for the next available price on or after dateStr.
+function getNextAvailablePriceWithDate(data: PricePoint[], dateStr: string): { price: number; date: string } {
+  for (const p of data) {
+    if (formatDate(p.date) >= dateStr) return { price: p.nav, date: formatDate(p.date) };
+  }
+  const last = data[data.length - 1];
+  return { price: last.nav, date: formatDate(last.date) };
 }
 
 function parseSyntheticTicker(ticker: string): { rate: number } | null {
@@ -900,6 +911,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
             investedByTcA[tc] = (investedByTcA[tc] ?? 0) + monthly;
             investedByTcA_usd[tc] = (investedByTcA_usd[tc] ?? 0) + monthlyInIc;
             const actualBuyDateA = data.find((p) => formatDate(p.date) >= investDateStr);
+            const { price: sellPriceA, date: actualSellDateA } = getNextAvailablePriceWithDate(data, endDateStrM);
             if (!buyDetailsA[monthStr]) buyDetailsA[monthStr] = [];
             buyDetailsA[monthStr].push({
               ticker,
@@ -908,6 +920,8 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
               nativeCurrency: tc,
               nativeAmount: monthly,
               usdCashFlow: -monthlyInIc,
+              sellDate: actualSellDateA,
+              sellPrice: sellPriceA,
             });
           }
         });
@@ -955,6 +969,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
             investedByTcB[tc] = (investedByTcB[tc] ?? 0) + monthly;
             investedByTcB_usd[tc] = (investedByTcB_usd[tc] ?? 0) + monthlyInIc;
             const actualBuyDateB = data.find((p) => formatDate(p.date) >= investDateStr);
+            const { price: sellPriceB, date: actualSellDateB } = getNextAvailablePriceWithDate(data, endDateStrM);
             if (!buyDetailsB[monthStr]) buyDetailsB[monthStr] = [];
             buyDetailsB[monthStr].push({
               ticker,
@@ -963,6 +978,8 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
               nativeCurrency: tc,
               nativeAmount: monthly,
               usdCashFlow: -monthlyInIc,
+              sellDate: actualSellDateB,
+              sellPrice: sellPriceB,
             });
           }
         });
@@ -1336,6 +1353,8 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
                           <th style={th({ textAlign: 'left' })}>Ticker</th>
                           <th style={th({ textAlign: 'left' })}>Actual Buy Date</th>
                           <th style={th()}>Buy Price</th>
+                          <th style={th({ textAlign: 'left' })}>Actual Sell Date</th>
+                          <th style={th()}>Sell Price</th>
                           <th style={th()}>Amount (Native)</th>
                           <th style={th()}>Cash Flow (USD) ↓</th>
                           <th style={th()}>Port. Value (USD)</th>
@@ -1358,6 +1377,10 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
                               <td style={td({ textAlign: 'left' })}>{b.buyDate}</td>
                               <td style={td()}>
                                 {getCurrencySymbol(b.nativeCurrency)}{b.buyPrice.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                              </td>
+                              <td style={td({ textAlign: 'left' })}>{b.sellDate}</td>
+                              <td style={td()}>
+                                {getCurrencySymbol(b.nativeCurrency)}{b.sellPrice.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                               </td>
                               <td style={td()}>{formatAmount(b.nativeAmount, b.nativeCurrency)}</td>
                               <td style={td({ color: '#dc2626', fontWeight: 600 })}>
@@ -1382,7 +1405,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
 
                           const sepRowEl = (
                             <tr key={`${r.month}-sep`} style={sepRow}>
-                              <td colSpan={9} style={{ padding: 0, height: 4 }} />
+                              <td colSpan={11} style={{ padding: 0, height: 4 }} />
                             </tr>
                           );
 
@@ -1393,6 +1416,8 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
                         <tr style={{ backgroundColor: '#f0fdf4', fontWeight: 700 }}>
                           <td style={td({ textAlign: 'left', fontWeight: 700 })}>{formatDate(new Date())}</td>
                           <td style={td({ textAlign: 'left', fontWeight: 700 })}>Final (close)</td>
+                          <td style={td({ textAlign: 'left' })}>—</td>
+                          <td style={td()}>—</td>
                           <td style={td({ textAlign: 'left' })}>—</td>
                           <td style={td()}>—</td>
                           <td style={td()}>—</td>
@@ -1406,7 +1431,7 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
                       </tbody>
                       <tfoot>
                         <tr style={{ backgroundColor: '#eff6ff' }}>
-                          <td colSpan={9} style={{
+                          <td colSpan={11} style={{
                             padding: '8px 12px', fontSize: 13, fontWeight: 700,
                             color: xirr != null ? (xirr >= 0 ? '#16a34a' : '#dc2626') : '#374151',
                           }}>
