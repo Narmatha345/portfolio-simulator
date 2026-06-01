@@ -1000,8 +1000,8 @@ export default function SipCrossMarketComparePage(): React.ReactElement {
       const finalB = b_val.at(-1)?.value ?? 0;
       const returnA = totalInvestedA > 0 ? ((finalA - totalInvestedA) / totalInvestedA) * 100 : 0;
       const returnB = totalInvestedB > 0 ? ((finalB - totalInvestedB) / totalInvestedB) * 100 : 0;
-      const xirrA = calcXirr(txA, finalA, endDate);
-      const xirrB = calcXirr(txB, finalB, endDate);
+      const xirrA = calcXirr(txA, finalA, new Date());
+      const xirrB = calcXirr(txB, finalB, new Date());
 
       // Build per-currency comparison series + invested totals for all foreign currencies
       const secValsByCurrency: Record<string, { a: ValuePoint[]; b: ValuePoint[] }> = {};
