@@ -16,6 +16,13 @@ import { correlationToColor } from './correlationColor';
 type SortColumn = 'symbol' | 'daily' | 'weekly' | 'monthly' | 'longTerm' | 'observations' | 'stability';
 type SortDir = 'asc' | 'desc';
 
+const FREQUENCY_LABELS: Record<CorrelationFrequency, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  longTerm: 'Long-term',
+};
+
 interface CorrelationRankedGroupsProps {
   rows: CorrelationCandidateRow[];
   frequency: CorrelationFrequency;
@@ -81,10 +88,7 @@ export const CorrelationRankedGroups: React.FC<CorrelationRankedGroupsProps> = (
 
   const columns: Array<{ key: SortColumn; label: string }> = [
     { key: 'symbol', label: 'Symbol' },
-    { key: 'daily', label: 'Daily' },
-    { key: 'weekly', label: 'Weekly' },
-    { key: 'monthly', label: 'Monthly' },
-    { key: 'longTerm', label: 'Long-term' },
+    { key: frequency, label: FREQUENCY_LABELS[frequency] },
     { key: 'observations', label: 'Obs.' },
     { key: 'stability', label: 'Stability' },
   ];
@@ -150,10 +154,7 @@ export const CorrelationRankedGroups: React.FC<CorrelationRankedGroupsProps> = (
                           <LabelXSmall color="contentTertiary">{row.name}</LabelXSmall>
                         </button>
                       </td>
-                      <td style={{ padding: '6px 10px' }}>{correlationCell(row, 'daily')}</td>
-                      <td style={{ padding: '6px 10px' }}>{correlationCell(row, 'weekly')}</td>
-                      <td style={{ padding: '6px 10px' }}>{correlationCell(row, 'monthly')}</td>
-                      <td style={{ padding: '6px 10px' }}>{correlationCell(row, 'longTerm')}</td>
+                      <td style={{ padding: '6px 10px' }}>{correlationCell(row, frequency)}</td>
                       <td style={{ padding: '6px 10px' }}>
                         <LabelXSmall>{row.horizons?.[frequency]?.observations ?? '—'}</LabelXSmall>
                         <br />

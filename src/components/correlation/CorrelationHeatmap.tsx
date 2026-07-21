@@ -26,9 +26,10 @@ const MAX_ROWS = 40;
 
 interface CorrelationHeatmapProps {
   rows: CorrelationCandidateRow[];
+  onCellClick?: (symbol: string, frequency: 'daily' | 'weekly' | 'monthly' | 'longTerm') => void;
 }
 
-export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows }) => {
+export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows, onCellClick }) => {
   const [categoryFilter, setCategoryFilter] = useState<CorrelationCategory | 'all'>('all');
 
   const ready = useMemo(() => rows.filter((r) => r.status === 'ready'), [rows]);
@@ -85,6 +86,16 @@ export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows }) 
         type: 'heatmap',
         data,
         nullColor: '#e2e8f0',
+        cursor: onCellClick ? 'pointer' : undefined,
+        point: {
+          events: {
+            click: function (this: any) {
+              const row = filtered[this.y];
+              const col = HORIZON_COLUMNS[this.x];
+              if (row && col) onCellClick?.(row.symbol, col.key);
+            },
+          },
+        },
         dataLabels: {
           enabled: true,
           color: '#0f172a',
@@ -120,6 +131,12 @@ export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows }) 
           </ParagraphSmall>
         )}
       </Block>
+      <ParagraphSmall margin="0" marginBottom="scale300" color="contentTertiary">
+        A blank cell means there isn&apos;t enough overlapping price history for that frequency yet — minimum
+        126 daily, 52 weekly, 24 monthly, or 36 months for long-term. It's never filled in with a shorter,
+        less reliable window.
+        {onCellClick && ' Click any cell to see the underlying prices and returns used to calculate it.'}
+      </ParagraphSmall>
       <HighchartsReact highcharts={Highcharts} options={options} />
     </Block>
   );

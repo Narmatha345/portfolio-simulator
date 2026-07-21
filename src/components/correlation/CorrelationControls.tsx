@@ -7,7 +7,7 @@ import { toaster } from 'baseui/toast';
 import React from 'react';
 import { UseCorrelationExplorerResult } from '../../hooks/useCorrelationExplorer';
 import { AiProvider, AssetUniverseSelection } from '../../types/correlation';
-import { AnalysisPeriod, CorrelationFrequency } from '../../utils/calculations/correlation/types';
+import { CorrelationFrequency } from '../../utils/calculations/correlation/types';
 
 const selectStyle: React.CSSProperties = {
   padding: '10px 12px',
@@ -18,13 +18,14 @@ const selectStyle: React.CSSProperties = {
   backgroundColor: '#fff',
 };
 
-const PERIOD_OPTIONS: Array<{ value: AnalysisPeriod; label: string }> = [
-  { value: '1y', label: '1 year' },
-  { value: '3y', label: '3 years' },
-  { value: '5y', label: '5 years' },
-  { value: '10y', label: '10 years' },
-  { value: 'max', label: 'Maximum available' },
-];
+const dateInputStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  borderRadius: '8px',
+  border: '1px solid #e2e8f0',
+  fontSize: '14px',
+  fontFamily: 'inherit',
+  backgroundColor: '#fff',
+};
 
 const FREQUENCY_OPTIONS: Array<{ value: CorrelationFrequency; label: string }> = [
   { value: 'daily', label: 'Daily' },
@@ -50,8 +51,10 @@ type Props = Pick<
   UseCorrelationExplorerResult,
   | 'primaryTicker'
   | 'setPrimaryTicker'
-  | 'period'
-  | 'setPeriod'
+  | 'startDate'
+  | 'setStartDate'
+  | 'endDate'
+  | 'setEndDate'
   | 'frequency'
   | 'setFrequency'
   | 'universeSelection'
@@ -86,14 +89,24 @@ export const CorrelationControls: React.FC<Props> = (props) => {
           />
         </Block>
         <Block>
-          <LabelSmall marginBottom="scale200">Analysis period</LabelSmall>
-          <select value={props.period} onChange={(e) => props.setPeriod(e.target.value as AnalysisPeriod)} style={selectStyle}>
-            {PERIOD_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <LabelSmall marginBottom="scale200">Start date</LabelSmall>
+          <input
+            type="date"
+            value={props.startDate}
+            max={props.endDate}
+            onChange={(e) => props.setStartDate(e.target.value)}
+            style={dateInputStyle}
+          />
+        </Block>
+        <Block>
+          <LabelSmall marginBottom="scale200">End date</LabelSmall>
+          <input
+            type="date"
+            value={props.endDate}
+            min={props.startDate}
+            onChange={(e) => props.setEndDate(e.target.value)}
+            style={dateInputStyle}
+          />
         </Block>
         <Block>
           <LabelSmall marginBottom="scale200">Frequency</LabelSmall>

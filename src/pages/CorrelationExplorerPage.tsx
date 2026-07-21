@@ -5,6 +5,7 @@ import { toaster } from 'baseui/toast';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CandidateDetailPanel } from '../components/correlation/CandidateDetailPanel';
+import { CorrelationCalculationTable } from '../components/correlation/CorrelationCalculationTable';
 import { CorrelationControls } from '../components/correlation/CorrelationControls';
 import { CorrelationHeatmap } from '../components/correlation/CorrelationHeatmap';
 import { CorrelationRankedGroups } from '../components/correlation/CorrelationRankedGroups';
@@ -13,6 +14,7 @@ import { CorrelationSpectrum } from '../components/correlation/CorrelationSpectr
 import { PageCard, PageIntro } from '../components/common/PageChrome';
 import { useCorrelationExplorer } from '../hooks/useCorrelationExplorer';
 import { buildCsv, downloadCsv } from '../utils/browser/downloadCsv';
+import { CorrelationFrequency } from '../utils/calculations/correlation/types';
 
 export default function CorrelationExplorerPage(): React.ReactElement {
   const explorer = useCorrelationExplorer();
@@ -20,6 +22,7 @@ export default function CorrelationExplorerPage(): React.ReactElement {
 
   const [selectedSymbols, setSelectedSymbols] = useState<Set<string>>(new Set());
   const [detailSymbol, setDetailSymbol] = useState<string | null>(null);
+  const [auditCell, setAuditCell] = useState<{ symbol: string; frequency: CorrelationFrequency } | null>(null);
 
   const toggleSelect = (symbol: string) => {
     setSelectedSymbols((prev) => {
@@ -86,7 +89,7 @@ export default function CorrelationExplorerPage(): React.ReactElement {
   return (
     <Block position="relative">
       <PageIntro title="Stock Correlation Explorer">
-        Enter a stock or ETF, choose an analysis period and candidate universe, and calculate correlations from adjusted
+        Enter a stock or ETF, choose a date range and candidate universe, and calculate correlations from adjusted
         market-price returns. AI can optionally suggest candidate symbols to test, but every correlation value shown here is
         computed deterministically from market data — never from AI.
       </PageIntro>
@@ -141,12 +144,26 @@ export default function CorrelationExplorerPage(): React.ReactElement {
                 primaryTicker={explorer.primaryTicker}
                 primaryPrices={explorer.primaryPrices!}
                 frequency={explorer.frequency}
-                period={explorer.period}
+                dateRange={{ startDate: explorer.startDate, endDate: explorer.endDate }}
                 onClose={() => setDetailSymbol(null)}
               />
             )}
 
-            <CorrelationHeatmap rows={explorer.rows} />
+            <CorrelationHeatmap
+              rows={explorer.rows}
+              onCellClick={(symbol, cellFrequency) => setAuditCell({ symbol, frequency: cellFrequency })}
+            />
+
+            {auditCell && (
+              <CorrelationCalculationTable
+                primaryTicker={explorer.primaryTicker}
+                primaryPrices={explorer.primaryPrices!}
+                candidateSymbol={auditCell.symbol}
+                frequency={auditCell.frequency}
+                dateRange={{ startDate: explorer.startDate, endDate: explorer.endDate }}
+                onClose={() => setAuditCell(null)}
+              />
+            )}
 
             <CorrelationRankedGroups
               rows={explorer.rows}

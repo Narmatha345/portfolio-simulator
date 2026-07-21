@@ -37,6 +37,10 @@ export const CorrelationSpectrum: React.FC<CorrelationSpectrumProps> = ({ primar
         </ParagraphSmall>
         <CorrelationInfoTooltip />
       </Block>
+      <ParagraphSmall margin="0" marginBottom="scale300" color="contentTertiary">
+        Only horizontal position is meaningful (each dot's correlation value). Vertical position is just
+        jitter to keep overlapping dots readable — it doesn&apos;t represent anything.
+      </ParagraphSmall>
 
       <Block position="relative" height={`${LANES * 26 + 40}px`} paddingTop="scale300">
         {/* Track */}

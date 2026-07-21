@@ -1,21 +1,17 @@
-import { AlignedSeries, AnalysisPeriod } from './types';
+import { AlignedSeries, DateRange } from './types';
 
-const PERIOD_YEARS: Partial<Record<AnalysisPeriod, number>> = { '1y': 1, '3y': 3, '5y': 5, '10y': 10 };
-
-/** Restrict an aligned series to the trailing N years, anchored at its own last common date. */
-export function restrictAlignedToPeriod(aligned: AlignedSeries, period: AnalysisPeriod): AlignedSeries {
-  if (period === 'max' || aligned.dates.length === 0) return aligned;
-  const years = PERIOD_YEARS[period];
-  if (!years) return aligned;
-
-  const anchor = aligned.dates[aligned.dates.length - 1];
-  const cutoff = Date.UTC(anchor.getUTCFullYear() - years, anchor.getUTCMonth(), anchor.getUTCDate());
+/** Restrict an aligned series to an inclusive [startDate, endDate] window. */
+export function restrictAlignedToDateRange(aligned: AlignedSeries, range: DateRange): AlignedSeries {
+  if (aligned.dates.length === 0) return aligned;
+  const start = Date.parse(`${range.startDate}T00:00:00Z`);
+  const end = Date.parse(`${range.endDate}T23:59:59Z`);
 
   const dates: Date[] = [];
   const a: number[] = [];
   const b: number[] = [];
   for (let i = 0; i < aligned.dates.length; i++) {
-    if (aligned.dates[i].getTime() >= cutoff) {
+    const t = aligned.dates[i].getTime();
+    if (t >= start && t <= end) {
       dates.push(aligned.dates[i]);
       a.push(aligned.a[i]);
       b.push(aligned.b[i]);

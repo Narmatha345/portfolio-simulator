@@ -3,7 +3,7 @@ import { yahooFinanceService } from '../../services/yahooFinanceService';
 import { linearRegression, LinearRegressionResult } from '../../utils/calculations/correlation/linearRegression';
 import { alignedReturnsForFrequency, longTermReturns } from '../../utils/calculations/correlation/horizons';
 import { computeRollingCorrelation, ROLLING_WINDOW_DEFAULTS, RollingCorrelationPoint } from '../../utils/calculations/correlation/rollingCorrelation';
-import { AnalysisPeriod, CorrelationFrequency, PriceSeries } from '../../utils/calculations/correlation/types';
+import { CorrelationFrequency, DateRange, PriceSeries } from '../../utils/calculations/correlation/types';
 
 export interface CandidateDetailData {
   loading: boolean;
@@ -30,7 +30,7 @@ export function useCandidateDetail(
   primaryPrices: PriceSeries | null,
   symbol: string | null,
   frequency: CorrelationFrequency,
-  period: AnalysisPeriod
+  dateRange: DateRange
 ): CandidateDetailData {
   const [data, setData] = useState<CandidateDetailData>(EMPTY);
 
@@ -51,7 +51,7 @@ export function useCandidateDetail(
         const paired =
           frequency === 'longTerm'
             ? longTermReturns(primaryPrices, candidatePrices)
-            : alignedReturnsForFrequency(primaryPrices, candidatePrices, rollingFrequency, period);
+            : alignedReturnsForFrequency(primaryPrices, candidatePrices, rollingFrequency, dateRange);
 
         const scatter = paired.a.map((x, i) => ({ x, y: paired.b[i] }));
         const regression = linearRegression(paired.a, paired.b);
@@ -79,7 +79,8 @@ export function useCandidateDetail(
     return () => {
       cancelled = true;
     };
-  }, [primaryPrices, symbol, frequency, period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryPrices, symbol, frequency, dateRange.startDate, dateRange.endDate]);
 
   return data;
 }

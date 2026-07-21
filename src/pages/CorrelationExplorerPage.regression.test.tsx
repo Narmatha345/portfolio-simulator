@@ -41,7 +41,7 @@ function upward(i: number): number {
 
 const PRIMARY_SERIES = businessDaySeries(1000, upward);
 
-const renderPage = (initialPath = '/correlation?ticker=VGT&period=5y&universe=custom&custom=AAPL,GLD') =>
+const renderPage = (initialPath = '/correlation?ticker=VGT&start=2021-07-20&end=2026-07-20&universe=custom&custom=AAPL,GLD') =>
   render(
     <MemoryRouter initialEntries={[initialPath]}>
       <BaseProvider theme={LightTheme}>
@@ -81,7 +81,7 @@ describe('[REGRESSION] CorrelationExplorerPage — /correlation', () => {
     expect(screen.getByRole('button', { name: /cancel scan/i })).toBeInTheDocument();
   });
 
-  it('INTERACTION + OUTPUT: running a scan shows all four correlation horizons, grouped by category', async () => {
+  it('INTERACTION + OUTPUT: running a scan groups results by category and shows the selected frequency', async () => {
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /find correlations/i }));
 
@@ -91,11 +91,14 @@ describe('[REGRESSION] CorrelationExplorerPage — /correlation', () => {
     expect(screen.getByText('AAPL')).toBeInTheDocument();
     expect(screen.getByText('GLD')).toBeInTheDocument();
 
-    // Column headers for all four horizons, within the ranked-results table.
+    // Default frequency is Daily: the ranked table shows only that column, not Weekly/Monthly/Long-term.
     expect(screen.getAllByRole('button', { name: /^Daily/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: /^Weekly/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: /^Monthly/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: /^Long-term/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /^Weekly/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Monthly/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Long-term/ })).not.toBeInTheDocument();
+
+    // The compact multi-horizon comparison (all four bars) is still available alongside it.
+    expect(screen.getAllByText('Horizons').length).toBeGreaterThan(0);
   });
 
   it('INTERACTION: sorting a correlation column toggles without crashing', async () => {

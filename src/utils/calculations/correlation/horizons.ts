@@ -1,13 +1,13 @@
 import { alignByKey } from './align';
-import { capAlignedToMaxPoints, restrictAlignedToPeriod } from './period';
+import { capAlignedToMaxPoints, restrictAlignedToDateRange } from './period';
 import { pearsonCorrelation } from './pearson';
 import { toDailyPoints, toMonthlyPoints, toWeeklyPoints } from './resample';
 import { computePairedLogReturns } from './returns';
 import {
   AlignedSeries,
-  AnalysisPeriod,
   CorrelationFrequency,
   CorrelationHorizons,
+  DateRange,
   HorizonResult,
   PairedReturns,
   PriceSeries,
@@ -68,32 +68,45 @@ function resamplerFor(frequency: 'daily' | 'weekly' | 'monthly') {
   return toMonthlyPoints;
 }
 
+/** Resampled, aligned, date-range-restricted adjusted-close price series (before returns are computed). */
+export function alignedPricesForFrequency(
+  primary: PriceSeries,
+  candidate: PriceSeries,
+  frequency: 'daily' | 'weekly' | 'monthly',
+  dateRange: DateRange
+): AlignedSeries {
+  const resample = resamplerFor(frequency);
+  const aligned: AlignedSeries = alignByKey(resample(primary), resample(candidate));
+  return restrictAlignedToDateRange(aligned, dateRange);
+}
+
 export function alignedReturnsForFrequency(
   primary: PriceSeries,
   candidate: PriceSeries,
   frequency: 'daily' | 'weekly' | 'monthly',
-  period: AnalysisPeriod
+  dateRange: DateRange
 ): PairedReturns {
-  const resample = resamplerFor(frequency);
-  const aligned: AlignedSeries = alignByKey(resample(primary), resample(candidate));
-  const restricted = restrictAlignedToPeriod(aligned, period);
-  return computePairedLogReturns(restricted);
+  return computePairedLogReturns(alignedPricesForFrequency(primary, candidate, frequency, dateRange));
 }
 
 export function computeFrequencyHorizon(
   primary: PriceSeries,
   candidate: PriceSeries,
   frequency: 'daily' | 'weekly' | 'monthly',
-  period: AnalysisPeriod
+  dateRange: DateRange
 ): HorizonResult {
-  const paired = alignedReturnsForFrequency(primary, candidate, frequency, period);
+  const paired = alignedReturnsForFrequency(primary, candidate, frequency, dateRange);
   return toHorizonResult(frequency, MIN_OBSERVATIONS[frequency], paired);
 }
 
-export function longTermReturns(primary: PriceSeries, candidate: PriceSeries): PairedReturns {
+/** Monthly-resampled, aligned price series capped at the 10-year long-term window (before returns are computed). */
+export function longTermAlignedPrices(primary: PriceSeries, candidate: PriceSeries): AlignedSeries {
   const aligned = alignByKey(toMonthlyPoints(primary), toMonthlyPoints(candidate));
-  const capped = capAlignedToMaxPoints(aligned, LONG_TERM_MAX_MONTHLY_PRICES);
-  return computePairedLogReturns(capped);
+  return capAlignedToMaxPoints(aligned, LONG_TERM_MAX_MONTHLY_PRICES);
+}
+
+export function longTermReturns(primary: PriceSeries, candidate: PriceSeries): PairedReturns {
+  return computePairedLogReturns(longTermAlignedPrices(primary, candidate));
 }
 
 /** Long term is always monthly-return correlation over the longest common history, capped at 10 years. */
@@ -105,12 +118,12 @@ export function computeLongTermHorizon(primary: PriceSeries, candidate: PriceSer
 export function computeCorrelationHorizons(
   primary: PriceSeries,
   candidate: PriceSeries,
-  period: AnalysisPeriod
+  dateRange: DateRange
 ): CorrelationHorizons {
   return {
-    daily: computeFrequencyHorizon(primary, candidate, 'daily', period),
-    weekly: computeFrequencyHorizon(primary, candidate, 'weekly', period),
-    monthly: computeFrequencyHorizon(primary, candidate, 'monthly', period),
+    daily: computeFrequencyHorizon(primary, candidate, 'daily', dateRange),
+    weekly: computeFrequencyHorizon(primary, candidate, 'weekly', dateRange),
+    monthly: computeFrequencyHorizon(primary, candidate, 'monthly', dateRange),
     longTerm: computeLongTermHorizon(primary, candidate),
   };
 }

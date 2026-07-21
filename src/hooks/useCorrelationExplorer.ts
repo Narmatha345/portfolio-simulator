@@ -11,18 +11,33 @@ import {
   ScanProgress,
   UniverseAssetType,
 } from '../types/correlation';
-import { AnalysisPeriod, CorrelationFrequency, PriceSeries } from '../utils/calculations/correlation/types';
+import { CorrelationFrequency, PriceSeries } from '../utils/calculations/correlation/types';
 import { retryAsync } from '../utils/browser/retryAsync';
 
 const DEFAULT_TICKER = 'VGT';
-const DEFAULT_PERIOD: AnalysisPeriod = '5y';
 const DEFAULT_FREQUENCY: CorrelationFrequency = 'daily';
 const DEFAULT_UNIVERSE: AssetUniverseSelection = 'stocks-and-etfs';
 const SCAN_CONCURRENCY = 6;
 const DEFAULT_AI_CANDIDATE_COUNT = 12;
 
-function isPeriod(v: string | null): v is AnalysisPeriod {
-  return v === '1y' || v === '3y' || v === '5y' || v === '10y' || v === 'max';
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isDateString(v: string | null): v is string {
+  return !!v && DATE_PATTERN.test(v) && !Number.isNaN(Date.parse(v));
+}
+
+function toIsoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultEndDate(): string {
+  return toIsoDate(new Date());
+}
+
+function defaultStartDate(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 3);
+  return toIsoDate(d);
 }
 
 function isFrequency(v: string | null): v is CorrelationFrequency {
@@ -46,8 +61,10 @@ function assetTypesForUniverse(selection: AssetUniverseSelection): UniverseAsset
 export interface UseCorrelationExplorerResult {
   primaryTicker: string;
   setPrimaryTicker: (v: string) => void;
-  period: AnalysisPeriod;
-  setPeriod: (v: AnalysisPeriod) => void;
+  startDate: string;
+  setStartDate: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
   frequency: CorrelationFrequency;
   setFrequency: (v: CorrelationFrequency) => void;
   universeSelection: AssetUniverseSelection;
@@ -77,9 +94,13 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [primaryTicker, setPrimaryTicker] = useState(() => (searchParams.get('ticker') || DEFAULT_TICKER).toUpperCase());
-  const [period, setPeriod] = useState<AnalysisPeriod>(() => {
-    const p = searchParams.get('period');
-    return isPeriod(p) ? p : DEFAULT_PERIOD;
+  const [startDate, setStartDate] = useState<string>(() => {
+    const s = searchParams.get('start');
+    return isDateString(s) ? s : defaultStartDate();
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    const e = searchParams.get('end');
+    return isDateString(e) ? e : defaultEndDate();
   });
   const [frequency, setFrequency] = useState<CorrelationFrequency>(() => {
     const f = searchParams.get('frequency');
@@ -109,7 +130,8 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
   const syncUrl = useCallback(() => {
     const next = new URLSearchParams();
     next.set('ticker', primaryTicker.trim().toUpperCase());
-    next.set('period', period);
+    next.set('start', startDate);
+    next.set('end', endDate);
     next.set('frequency', frequency);
     next.set('universe', universeSelection);
     if (customSymbolsInput.trim()) next.set('custom', customSymbolsInput.trim());
@@ -118,14 +140,15 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       next.set('aiProvider', aiProvider);
     }
     setSearchParams(next);
-  }, [primaryTicker, period, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, setSearchParams]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, setSearchParams]);
 
   const shareUrl = useCallback(() => {
     const url = new URL(window.location.href);
     url.search = '';
     const params = new URLSearchParams();
     params.set('ticker', primaryTicker.trim().toUpperCase());
-    params.set('period', period);
+    params.set('start', startDate);
+    params.set('end', endDate);
     params.set('frequency', frequency);
     params.set('universe', universeSelection);
     if (customSymbolsInput.trim()) params.set('custom', customSymbolsInput.trim());
@@ -134,7 +157,7 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       params.set('aiProvider', aiProvider);
     }
     return `${url.origin}${url.pathname}?${params.toString()}`;
-  }, [primaryTicker, period, frequency, universeSelection, customSymbolsInput, useAi, aiProvider]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider]);
 
   const cancelScan = useCallback(() => {
     cancelledRef.current = true;
@@ -145,6 +168,10 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     const ticker = primaryTicker.trim().toUpperCase();
     if (!ticker) {
       setError('Enter a primary ticker.');
+      return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+      setError('Start date must be before or equal to end date.');
       return;
     }
 
@@ -199,7 +226,7 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
           primaryTicker: ticker,
           primaryPrices: primary,
           candidates: candidateInputs,
-          period,
+          dateRange: { startDate, endDate },
           frequency,
           onProgress: (p) => setProgress(p),
           onRow: (row) =>
@@ -224,14 +251,16 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     } finally {
       setIsScanning(false);
     }
-  }, [primaryTicker, period, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiApiKey, syncUrl]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiApiKey, syncUrl]);
 
   return useMemo(
     () => ({
       primaryTicker,
       setPrimaryTicker,
-      period,
-      setPeriod,
+      startDate,
+      setStartDate,
+      endDate,
+      setEndDate,
       frequency,
       setFrequency,
       universeSelection,
@@ -256,7 +285,8 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     }),
     [
       primaryTicker,
-      period,
+      startDate,
+      endDate,
       frequency,
       universeSelection,
       customSymbolsInput,

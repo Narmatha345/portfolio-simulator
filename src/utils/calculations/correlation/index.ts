@@ -9,3 +9,4 @@ export * from './stability';
 export * from './rollingCorrelation';
 export * from './horizons';
 export * from './linearRegression';
+export * from './auditTable';

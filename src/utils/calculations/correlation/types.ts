@@ -1,6 +1,10 @@
 import { ProcessedIndexData } from '../../../types/index';
 
-export type AnalysisPeriod = '1y' | '3y' | '5y' | '10y' | 'max';
+/** Inclusive user-chosen analysis window (YYYY-MM-DD). Long-term horizon ignores this and always uses its own capped history. */
+export interface DateRange {
+  startDate: string;
+  endDate: string;
+}
 
 export type CorrelationFrequency = 'daily' | 'weekly' | 'monthly' | 'longTerm';
 

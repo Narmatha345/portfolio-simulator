@@ -6,7 +6,7 @@ import HighchartsReact from 'highcharts-react-official';
 import React from 'react';
 import { useCandidateDetail } from '../../hooks/correlation/useCandidateDetail';
 import { CorrelationCandidateRow } from '../../types/correlation';
-import { AnalysisPeriod, CorrelationFrequency, PriceSeries } from '../../utils/calculations/correlation/types';
+import { CorrelationFrequency, DateRange, PriceSeries } from '../../utils/calculations/correlation/types';
 import { correlationToColor } from './correlationColor';
 import { MultiHorizonBars } from './MultiHorizonBars';
 
@@ -15,7 +15,7 @@ interface CandidateDetailPanelProps {
   primaryTicker: string;
   primaryPrices: PriceSeries;
   frequency: CorrelationFrequency;
-  period: AnalysisPeriod;
+  dateRange: DateRange;
   onClose: () => void;
 }
 
@@ -31,10 +31,10 @@ export const CandidateDetailPanel: React.FC<CandidateDetailPanelProps> = ({
   primaryTicker,
   primaryPrices,
   frequency,
-  period,
+  dateRange,
   onClose,
 }) => {
-  const detail = useCandidateDetail(primaryPrices, row.symbol, frequency, period);
+  const detail = useCandidateDetail(primaryPrices, row.symbol, frequency, dateRange);
 
   const scatterOptions: Highcharts.Options = {
     chart: { type: 'scatter', height: 340 },

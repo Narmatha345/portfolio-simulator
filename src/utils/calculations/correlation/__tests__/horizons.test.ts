@@ -1,5 +1,8 @@
 import { computeFrequencyHorizon, computeLongTermHorizon, MIN_OBSERVATIONS } from '../horizons';
+import { DateRange } from '../types';
 import { ProcessedIndexData } from '../../../../types/index';
+
+const WIDE_RANGE: DateRange = { startDate: '1990-01-01', endDate: '2100-01-01' };
 
 /** Generates `count` consecutive business-day (Mon-Fri) points starting at `start`. */
 function businessDaySeries(start: Date, count: number, priceFn: (i: number) => number): ProcessedIndexData[] {
@@ -37,7 +40,7 @@ describe('computeFrequencyHorizon - daily', () => {
     const start = new Date(Date.UTC(2023, 0, 2));
     const primary = businessDaySeries(start, 100, upwardPrice);
     const candidate = businessDaySeries(start, 100, upwardPrice);
-    const result = computeFrequencyHorizon(primary, candidate, 'daily', 'max');
+    const result = computeFrequencyHorizon(primary, candidate, 'daily', WIDE_RANGE);
     expect(result.available).toBe(false);
     expect(result.correlation).toBeNull();
     expect(result.minRequired).toBe(MIN_OBSERVATIONS.daily);
@@ -47,7 +50,7 @@ describe('computeFrequencyHorizon - daily', () => {
     const start = new Date(Date.UTC(2023, 0, 2));
     const primary = businessDaySeries(start, 200, upwardPrice);
     const candidate = businessDaySeries(start, 200, (i) => upwardPrice(i) * 3.5);
-    const result = computeFrequencyHorizon(primary, candidate, 'daily', 'max');
+    const result = computeFrequencyHorizon(primary, candidate, 'daily', WIDE_RANGE);
     expect(result.available).toBe(true);
     expect(result.correlation).toBeCloseTo(1, 6);
     expect(result.observations).toBeGreaterThanOrEqual(MIN_OBSERVATIONS.daily);
@@ -57,17 +60,24 @@ describe('computeFrequencyHorizon - daily', () => {
     const start = new Date(Date.UTC(2023, 0, 2));
     const primary = businessDaySeries(start, 200, upwardPrice);
     const candidate = businessDaySeries(start, 200, (i) => 1 / upwardPrice(i));
-    const result = computeFrequencyHorizon(primary, candidate, 'daily', 'max');
+    const result = computeFrequencyHorizon(primary, candidate, 'daily', WIDE_RANGE);
     expect(result.available).toBe(true);
     expect(result.correlation).toBeCloseTo(-1, 6);
   });
 
-  it('restricts the common window to the trailing period (e.g. 1y) anchored at the last common date', () => {
+  it('restricts the common window to a chosen [startDate, endDate] range', () => {
     const start = new Date(Date.UTC(2015, 0, 2));
     const primary = businessDaySeries(start, 2000, upwardPrice);
     const candidate = businessDaySeries(start, 2000, upwardPrice);
-    const full = computeFrequencyHorizon(primary, candidate, 'daily', 'max');
-    const oneYear = computeFrequencyHorizon(primary, candidate, 'daily', '1y');
+    const full = computeFrequencyHorizon(primary, candidate, 'daily', WIDE_RANGE);
+
+    const anchor = new Date(`${full.endDate}T00:00:00Z`);
+    const oneYearStart = new Date(Date.UTC(anchor.getUTCFullYear() - 1, anchor.getUTCMonth(), anchor.getUTCDate()));
+    const oneYear = computeFrequencyHorizon(primary, candidate, 'daily', {
+      startDate: oneYearStart.toISOString().slice(0, 10),
+      endDate: full.endDate!,
+    });
+
     expect(oneYear.observations).toBeLessThan(full.observations);
     expect(oneYear.observations).toBeGreaterThanOrEqual(MIN_OBSERVATIONS.daily);
   });
@@ -76,7 +86,7 @@ describe('computeFrequencyHorizon - daily', () => {
     const start = new Date(Date.UTC(2023, 0, 2));
     const primary = businessDaySeries(start, 200, upwardPrice).map((p, i) => (i % 10 === 0 ? { ...p, nav: NaN } : p));
     const candidate = businessDaySeries(start, 200, upwardPrice);
-    const result = computeFrequencyHorizon(primary, candidate, 'daily', 'max');
+    const result = computeFrequencyHorizon(primary, candidate, 'daily', WIDE_RANGE);
     // ~20 of 200 rows dropped, still above the 126 minimum.
     expect(result.available).toBe(true);
     expect(result.observations).toBeLessThan(199);

@@ -1,7 +1,7 @@
 import { classifyCorrelation } from '../../utils/calculations/correlation/classify';
 import { classifyStability } from '../../utils/calculations/correlation/stability';
 import { computeCorrelationHorizons } from '../../utils/calculations/correlation/horizons';
-import { AnalysisPeriod, CorrelationFrequency, CorrelationHorizons, PriceSeries } from '../../utils/calculations/correlation/types';
+import { CorrelationFrequency, CorrelationHorizons, DateRange, PriceSeries } from '../../utils/calculations/correlation/types';
 import { runWithConcurrency } from '../../utils/concurrency/runWithConcurrency';
 import { CandidateInput, CorrelationCandidateRow, ScanProgress, UniverseAsset } from '../../types/correlation';
 
@@ -52,7 +52,7 @@ export interface RunScanParams {
   primaryTicker: string;
   primaryPrices: PriceSeries;
   candidates: CandidateInput[];
-  period: AnalysisPeriod;
+  dateRange: DateRange;
   frequency: CorrelationFrequency;
   onProgress?: (progress: ScanProgress) => void;
   onRow?: (row: CorrelationCandidateRow) => void;
@@ -101,7 +101,7 @@ export async function runCorrelationScan(params: RunScanParams, deps: RunScanDep
         return;
       }
 
-      const horizons = computeCorrelationHorizons(params.primaryPrices, prices, params.period);
+      const horizons = computeCorrelationHorizons(params.primaryPrices, prices, params.dateRange);
       const anyAvailable = horizons.daily.available || horizons.weekly.available || horizons.monthly.available || horizons.longTerm.available;
       if (!anyAvailable) {
         params.onRow?.({
