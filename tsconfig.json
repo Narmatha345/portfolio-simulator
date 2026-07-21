@@ -5,6 +5,7 @@
     "jsx": "react-jsx",
     "moduleResolution": "Node",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "strict": true,
     "sourceMap": true
   },
