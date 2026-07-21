@@ -49,13 +49,10 @@ export const CandidateDetailPanel: React.FC<CandidateDetailPanelProps> = ({
       },
     },
     series: [
-      {
-        type: 'scatter',
-        name: `${primaryTicker} vs ${row.symbol}`,
-        data: detail.scatter.map((p) => [p.x, p.y]),
-        color: 'rgba(37, 99, 235, 0.55)',
-        marker: { radius: 3 },
-      },
+      // Regression line is drawn first (behind), so the scatter points render on top and stay hoverable —
+      // Highcharts renders later series above earlier ones, and the line's path would otherwise physically
+      // cover point markers it happens to pass through, blocking their pointer events even with
+      // enableMouseTracking: false (which only stops Highcharts reacting to hover on the line itself).
       ...(detail.regression && detail.scatter.length > 0
         ? [
             (() => {
@@ -76,6 +73,13 @@ export const CandidateDetailPanel: React.FC<CandidateDetailPanelProps> = ({
             })(),
           ]
         : []),
+      {
+        type: 'scatter',
+        name: `${primaryTicker} vs ${row.symbol}`,
+        data: detail.scatter.map((p) => [p.x, p.y]),
+        color: 'rgba(37, 99, 235, 0.55)',
+        marker: { radius: 3 },
+      },
     ],
   };
 
@@ -102,7 +106,7 @@ export const CandidateDetailPanel: React.FC<CandidateDetailPanelProps> = ({
         name: 'Rolling correlation',
         data: detail.rolling.map((p) => [p.date.getTime(), p.correlation]),
         color: '#0369a1',
-        marker: { enabled: false },
+        marker: { enabled: false, states: { hover: { enabled: true, radius: 5 } } },
       },
     ],
   };
@@ -166,14 +170,14 @@ export const CandidateDetailPanel: React.FC<CandidateDetailPanelProps> = ({
         <>
           <LabelSmall marginBottom="scale200">Scatter plot ({FREQUENCY_LABEL[frequency]} returns) with regression line</LabelSmall>
           <Block marginBottom="scale500">
-            <HighchartsReact highcharts={Highcharts} options={scatterOptions} />
+            <HighchartsReact highcharts={Highcharts} options={scatterOptions} immutable />
           </Block>
 
           <LabelSmall marginBottom="scale200">
             Rolling correlation (window: {detail.rollingWindow} {frequency === 'daily' ? 'trading days' : frequency === 'weekly' ? 'weeks' : 'months'})
           </LabelSmall>
           <Block>
-            <HighchartsReact highcharts={Highcharts} options={rollingOptions} />
+            <HighchartsReact highcharts={Highcharts} options={rollingOptions} immutable />
           </Block>
         </>
       )}
