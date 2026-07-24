@@ -2,6 +2,7 @@ import { Block } from 'baseui/block';
 import { Button } from 'baseui/button';
 import { Checkbox } from 'baseui/checkbox';
 import { Input } from 'baseui/input';
+import { Textarea } from 'baseui/textarea';
 import { LabelSmall } from 'baseui/typography';
 import { toaster } from 'baseui/toast';
 import React from 'react';
@@ -67,6 +68,8 @@ type Props = Pick<
   | 'setAiProvider'
   | 'aiApiKey'
   | 'setAiApiKey'
+  | 'aiInstructions'
+  | 'setAiInstructions'
   | 'isScanning'
   | 'runScan'
   | 'cancelScan'
@@ -183,6 +186,22 @@ export const CorrelationControls: React.FC<Props> = (props) => {
           </>
         )}
       </Block>
+
+      {props.useAi && (
+        <Block marginBottom="scale400">
+          <LabelSmall marginBottom="scale200">
+            AI instructions{' '}
+            <span style={{ fontWeight: 400, color: '#64748b', fontSize: 12 }}>(optional — natural language guidance for the AI)</span>
+          </LabelSmall>
+          <Textarea
+            value={props.aiInstructions}
+            onChange={(e) => props.setAiInstructions((e.target as HTMLTextAreaElement).value)}
+            placeholder='e.g. "Only Indian stock market companies"'
+            size="compact"
+            rows={2}
+          />
+        </Block>
+      )}
 
       <Block display="flex" gridGap="scale300" flexWrap="wrap">
         <Button kind="primary" onClick={() => void props.runScan()} isLoading={props.isScanning} disabled={props.isScanning}>

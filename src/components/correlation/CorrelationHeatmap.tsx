@@ -27,9 +27,10 @@ const MAX_ROWS = 40;
 interface CorrelationHeatmapProps {
   rows: CorrelationCandidateRow[];
   onCellClick?: (symbol: string, frequency: 'daily' | 'weekly' | 'monthly' | 'longTerm') => void;
+  heading?: string;
 }
 
-export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows, onCellClick }) => {
+export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows, onCellClick, heading = 'Correlation heatmap' }) => {
   const [categoryFilter, setCategoryFilter] = useState<CorrelationCategory | 'all'>('all');
 
   const ready = useMemo(() => rows.filter((r) => r.status === 'ready'), [rows]);
@@ -112,7 +113,7 @@ export const CorrelationHeatmap: React.FC<CorrelationHeatmapProps> = ({ rows, on
   return (
     <Block marginBottom="scale600">
       <Block display="flex" alignItems="center" gridGap="scale300" marginBottom="scale300" flexWrap="wrap">
-        <LabelSmall $style={{ fontWeight: 700 }}>Correlation heatmap</LabelSmall>
+        <LabelSmall $style={{ fontWeight: 700 }}>{heading}</LabelSmall>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as CorrelationCategory | 'all')}

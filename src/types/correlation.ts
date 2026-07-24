@@ -18,17 +18,7 @@ export type AssetUniverseSelection = 'us-stocks' | 'etfs' | 'stocks-and-etfs' | 
 
 export type AiProvider = 'gemini' | 'chatgpt' | 'claude';
 
-/** Strict AI candidate-discovery response contract — AI may only ever suggest symbols + a rationale. */
-export interface AiCandidateRaw {
-  symbol: string;
-  reason?: string;
-}
-
-export interface AiCandidatesResponse {
-  candidates: AiCandidateRaw[];
-}
-
-/** A validated, normalized AI-suggested candidate (schema-checked, never carries a correlation value). */
+/** A validated, normalized AI-suggested ticker (never carries a correlation value — AI only ever suggests symbols). */
 export interface AiCandidate {
   symbol: string;
   reason: string;

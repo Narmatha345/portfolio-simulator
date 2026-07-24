@@ -5,11 +5,11 @@ import { fetchAiCandidates } from '../services/correlationAiService';
 import { buildCandidateInputs, lookupUniverseAsset, parseCustomSymbols } from '../services/correlationUniverseService';
 import { yahooFinanceService } from '../services/yahooFinanceService';
 import {
+  AiCandidate,
   AiProvider,
   AssetUniverseSelection,
   CorrelationCandidateRow,
   ScanProgress,
-  UniverseAssetType,
 } from '../types/correlation';
 import { CorrelationFrequency, PriceSeries } from '../utils/calculations/correlation/types';
 import { retryAsync } from '../utils/browser/retryAsync';
@@ -52,12 +52,6 @@ function isAiProvider(v: string | null): v is AiProvider {
   return v === 'gemini' || v === 'chatgpt' || v === 'claude';
 }
 
-function assetTypesForUniverse(selection: AssetUniverseSelection): UniverseAssetType[] {
-  if (selection === 'us-stocks') return ['stock'];
-  if (selection === 'etfs') return ['etf'];
-  return ['stock', 'etf'];
-}
-
 export interface UseCorrelationExplorerResult {
   primaryTicker: string;
   setPrimaryTicker: (v: string) => void;
@@ -77,6 +71,8 @@ export interface UseCorrelationExplorerResult {
   setAiProvider: (v: AiProvider) => void;
   aiApiKey: string;
   setAiApiKey: (v: string) => void;
+  aiInstructions: string;
+  setAiInstructions: (v: string) => void;
 
   isScanning: boolean;
   progress: ScanProgress | null;
@@ -84,6 +80,7 @@ export interface UseCorrelationExplorerResult {
   primaryPrices: PriceSeries | null;
   error: string | null;
   aiWarning: string | null;
+  aiSuggestedTickers: AiCandidate[];
 
   runScan: () => Promise<void>;
   cancelScan: () => void;
@@ -114,9 +111,10 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
   const [useAi, setUseAi] = useState(() => searchParams.get('ai') === '1');
   const [aiProvider, setAiProvider] = useState<AiProvider>(() => {
     const p = searchParams.get('aiProvider');
-    return isAiProvider(p) ? p : 'gemini';
+    return isAiProvider(p) ? p : 'chatgpt';
   });
   const [aiApiKey, setAiApiKey] = useState(''); // never persisted to the URL or beyond this session
+  const [aiInstructions, setAiInstructions] = useState(() => searchParams.get('aiInstructions') ?? '');
 
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
@@ -124,6 +122,7 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
   const [primaryPrices, setPrimaryPrices] = useState<PriceSeries | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aiWarning, setAiWarning] = useState<string | null>(null);
+  const [aiSuggestedTickers, setAiSuggestedTickers] = useState<AiCandidate[]>([]);
 
   const cancelledRef = useRef(false);
 
@@ -138,9 +137,10 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     if (useAi) {
       next.set('ai', '1');
       next.set('aiProvider', aiProvider);
+      if (aiInstructions.trim()) next.set('aiInstructions', aiInstructions.trim());
     }
     setSearchParams(next);
-  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, setSearchParams]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiInstructions, setSearchParams]);
 
   const shareUrl = useCallback(() => {
     const url = new URL(window.location.href);
@@ -155,9 +155,10 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     if (useAi) {
       params.set('ai', '1');
       params.set('aiProvider', aiProvider);
+      if (aiInstructions.trim()) params.set('aiInstructions', aiInstructions.trim());
     }
     return `${url.origin}${url.pathname}?${params.toString()}`;
-  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiInstructions]);
 
   const cancelScan = useCallback(() => {
     cancelledRef.current = true;
@@ -182,6 +183,7 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     setRows([]);
     setProgress(null);
     setPrimaryPrices(null);
+    setAiSuggestedTickers([]);
     syncUrl();
 
     try {
@@ -193,21 +195,25 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       }
       setPrimaryPrices(primary);
 
-      let aiCandidates: Array<{ symbol: string; reason: string }> = [];
+      let aiCandidates: AiCandidate[] = [];
       if (useAi) {
         try {
           aiCandidates = await fetchAiCandidates({
             provider: aiProvider,
             primaryTicker: ticker,
-            allowedAssetTypes: assetTypesForUniverse(universeSelection === 'custom' ? 'stocks-and-etfs' : universeSelection),
+            startDate,
+            endDate,
+            frequency,
+            instructions: aiInstructions.trim() || undefined,
             count: DEFAULT_AI_CANDIDATE_COUNT,
             apiKey: aiApiKey || undefined,
           });
         } catch (aiError) {
-          setAiWarning((aiError as Error).message || 'AI candidate discovery failed; continuing with the built-in universe only.');
+          setAiWarning((aiError as Error).message || 'AI candidate discovery failed.');
         }
+        if (cancelledRef.current) return;
+        setAiSuggestedTickers(aiCandidates);
       }
-      if (cancelledRef.current) return;
 
       const candidateInputs = buildCandidateInputs({
         primaryTicker: ticker,
@@ -217,7 +223,11 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       });
 
       if (candidateInputs.length === 0) {
-        setError('No candidates to scan. Add custom symbols or choose a built-in universe.');
+        setError(
+          useAi
+            ? 'No candidates to scan. The AI did not return any usable ticker symbols — try adjusting your AI instructions, provider, or API key, or add custom symbols / choose a built-in universe.'
+            : 'No candidates to scan. Add custom symbols or choose a built-in universe.'
+        );
         return;
       }
 
@@ -251,7 +261,7 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
     } finally {
       setIsScanning(false);
     }
-  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiApiKey, syncUrl]);
+  }, [primaryTicker, startDate, endDate, frequency, universeSelection, customSymbolsInput, useAi, aiProvider, aiApiKey, aiInstructions, syncUrl]);
 
   return useMemo(
     () => ({
@@ -273,12 +283,15 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       setAiProvider,
       aiApiKey,
       setAiApiKey,
+      aiInstructions,
+      setAiInstructions,
       isScanning,
       progress,
       rows,
       primaryPrices,
       error,
       aiWarning,
+      aiSuggestedTickers,
       runScan,
       cancelScan,
       shareUrl,
@@ -293,12 +306,14 @@ export function useCorrelationExplorer(): UseCorrelationExplorerResult {
       useAi,
       aiProvider,
       aiApiKey,
+      aiInstructions,
       isScanning,
       progress,
       rows,
       primaryPrices,
       error,
       aiWarning,
+      aiSuggestedTickers,
       runScan,
       cancelScan,
       shareUrl,

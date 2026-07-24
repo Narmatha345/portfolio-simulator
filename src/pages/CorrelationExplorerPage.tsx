@@ -1,6 +1,7 @@
 import { Block } from 'baseui/block';
 import { Button } from 'baseui/button';
-import { ParagraphSmall } from 'baseui/typography';
+import { LabelSmall, ParagraphSmall } from 'baseui/typography';
+import { Tag } from 'baseui/tag';
 import { toaster } from 'baseui/toast';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +16,15 @@ import { PageCard, PageIntro } from '../components/common/PageChrome';
 import { useCorrelationExplorer } from '../hooks/useCorrelationExplorer';
 import { buildCsv, downloadCsv } from '../utils/browser/downloadCsv';
 import { CorrelationFrequency } from '../utils/calculations/correlation/types';
+
+const aiSectionStyle: React.CSSProperties = {
+  border: '1px solid #ddd6fe',
+  borderLeft: '4px solid #7c3aed',
+  backgroundColor: '#faf5ff',
+  borderRadius: '8px',
+  padding: '16px',
+  marginBottom: '24px',
+};
 
 export default function CorrelationExplorerPage(): React.ReactElement {
   const explorer = useCorrelationExplorer();
@@ -38,6 +48,10 @@ export default function CorrelationExplorerPage(): React.ReactElement {
     () => explorer.rows.filter((r) => r.status === 'invalid' || r.status === 'insufficient-history'),
     [explorer.rows]
   );
+  const aiRows = useMemo(() => explorer.rows.filter((r) => r.source === 'ai'), [explorer.rows]);
+  const nonAiRows = useMemo(() => explorer.rows.filter((r) => r.source !== 'ai'), [explorer.rows]);
+  const aiReadyCount = useMemo(() => aiRows.filter((r) => r.status === 'ready').length, [aiRows]);
+  const nonAiReadyCount = useMemo(() => nonAiRows.filter((r) => r.status === 'ready').length, [nonAiRows]);
   const detailRow = detailSymbol ? explorer.rows.find((r) => r.symbol === detailSymbol) : undefined;
 
   const handleExportCsv = () => {
@@ -107,6 +121,26 @@ export default function CorrelationExplorerPage(): React.ReactElement {
             {explorer.aiWarning}
           </ParagraphSmall>
         )}
+
+        {explorer.useAi && explorer.aiSuggestedTickers.length > 0 && (
+          <div style={aiSectionStyle}>
+            <LabelSmall marginBottom="scale200" $style={{ fontWeight: 700 }}>
+              🤖 AI-Generated Correlation — Suggested tickers ({explorer.aiSuggestedTickers.length})
+            </LabelSmall>
+            <Block display="flex" flexWrap="wrap" gridGap="scale100">
+              {explorer.aiSuggestedTickers.map((c) => (
+                <Tag key={c.symbol} closeable={false} kind="accent">
+                  {c.symbol}
+                </Tag>
+              ))}
+            </Block>
+            <ParagraphSmall color="contentTertiary" marginTop="scale200">
+              These symbols were suggested by the AI provider. Every correlation value below is still computed
+              deterministically from historical market data — never by the AI.
+            </ParagraphSmall>
+          </div>
+        )}
+
         {explorer.isScanning && explorer.progress && (
           <>
             <ParagraphSmall marginBottom="scale300">
@@ -119,12 +153,26 @@ export default function CorrelationExplorerPage(): React.ReactElement {
 
         {readyRows.length > 0 && (
           <>
-            <CorrelationSpectrum
-              primaryTicker={explorer.primaryTicker}
-              rows={explorer.rows}
-              selectedSymbol={detailSymbol}
-              onSelect={setDetailSymbol}
-            />
+            {aiReadyCount > 0 && (
+              <div style={aiSectionStyle}>
+                <CorrelationSpectrum
+                  primaryTicker={explorer.primaryTicker}
+                  rows={aiRows}
+                  selectedSymbol={detailSymbol}
+                  onSelect={setDetailSymbol}
+                  heading="🤖 AI-Generated Correlation Spectrum"
+                />
+              </div>
+            )}
+
+            {nonAiReadyCount > 0 && (
+              <CorrelationSpectrum
+                primaryTicker={explorer.primaryTicker}
+                rows={nonAiRows}
+                selectedSymbol={detailSymbol}
+                onSelect={setDetailSymbol}
+              />
+            )}
 
             <Block display="flex" gridGap="scale300" flexWrap="wrap" marginBottom="scale500">
               <Button kind="secondary" size="compact" onClick={handleExportCsv}>
@@ -149,10 +197,22 @@ export default function CorrelationExplorerPage(): React.ReactElement {
               />
             )}
 
-            <CorrelationHeatmap
-              rows={explorer.rows}
-              onCellClick={(symbol, cellFrequency) => setAuditCell({ symbol, frequency: cellFrequency })}
-            />
+            {aiReadyCount > 0 && (
+              <div style={aiSectionStyle}>
+                <CorrelationHeatmap
+                  rows={aiRows}
+                  onCellClick={(symbol, cellFrequency) => setAuditCell({ symbol, frequency: cellFrequency })}
+                  heading="🤖 AI-Generated Correlation Heatmap"
+                />
+              </div>
+            )}
+
+            {nonAiReadyCount > 0 && (
+              <CorrelationHeatmap
+                rows={nonAiRows}
+                onCellClick={(symbol, cellFrequency) => setAuditCell({ symbol, frequency: cellFrequency })}
+              />
+            )}
 
             {auditCell && (
               <CorrelationCalculationTable
@@ -165,13 +225,29 @@ export default function CorrelationExplorerPage(): React.ReactElement {
               />
             )}
 
-            <CorrelationRankedGroups
-              rows={explorer.rows}
-              frequency={explorer.frequency}
-              selectedSymbols={selectedSymbols}
-              onToggleSelect={toggleSelect}
-              onOpenDetail={setDetailSymbol}
-            />
+            {aiReadyCount > 0 && (
+              <div style={aiSectionStyle}>
+                <CorrelationRankedGroups
+                  rows={aiRows}
+                  frequency={explorer.frequency}
+                  selectedSymbols={selectedSymbols}
+                  onToggleSelect={toggleSelect}
+                  onOpenDetail={setDetailSymbol}
+                  heading="🤖 AI-Generated Correlation Results"
+                />
+              </div>
+            )}
+
+            {nonAiReadyCount > 0 && (
+              <CorrelationRankedGroups
+                rows={nonAiRows}
+                frequency={explorer.frequency}
+                selectedSymbols={selectedSymbols}
+                onToggleSelect={toggleSelect}
+                onOpenDetail={setDetailSymbol}
+                heading="Ranked results"
+              />
+            )}
 
             {problemRows.length > 0 && (
               <Block marginTop="scale400">

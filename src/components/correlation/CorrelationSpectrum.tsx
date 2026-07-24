@@ -10,6 +10,7 @@ interface CorrelationSpectrumProps {
   rows: CorrelationCandidateRow[];
   selectedSymbol?: string | null;
   onSelect: (symbol: string) => void;
+  heading?: string;
 }
 
 const TICKS = [-1, -0.7, -0.3, 0, 0.3, 0.7, 1];
@@ -25,13 +26,19 @@ function valueToPercent(value: number): number {
   return ((Math.max(-1, Math.min(1, value)) + 1) / 2) * 100;
 }
 
-export const CorrelationSpectrum: React.FC<CorrelationSpectrumProps> = ({ primaryTicker, rows, selectedSymbol, onSelect }) => {
+export const CorrelationSpectrum: React.FC<CorrelationSpectrumProps> = ({
+  primaryTicker,
+  rows,
+  selectedSymbol,
+  onSelect,
+  heading = 'Correlation spectrum',
+}) => {
   const ready = rows.filter((r) => r.status === 'ready' && r.primaryCorrelation !== undefined);
 
   return (
     <Block marginBottom="scale600">
       <Block display="flex" alignItems="baseline" gridGap="scale200" marginBottom="scale400">
-        <LabelSmall $style={{ fontWeight: 700 }}>Correlation spectrum</LabelSmall>
+        <LabelSmall $style={{ fontWeight: 700 }}>{heading}</LabelSmall>
         <ParagraphSmall color="contentSecondary" margin="0">
           vs <strong>{primaryTicker}</strong> — click a point to open its detail view
         </ParagraphSmall>

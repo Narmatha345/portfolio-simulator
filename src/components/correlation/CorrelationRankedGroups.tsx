@@ -29,6 +29,7 @@ interface CorrelationRankedGroupsProps {
   selectedSymbols: Set<string>;
   onToggleSelect: (symbol: string) => void;
   onOpenDetail: (symbol: string) => void;
+  heading?: string;
 }
 
 function correlationCell(row: CorrelationCandidateRow, freq: CorrelationFrequency): React.ReactElement {
@@ -53,6 +54,7 @@ export const CorrelationRankedGroups: React.FC<CorrelationRankedGroupsProps> = (
   selectedSymbols,
   onToggleSelect,
   onOpenDetail,
+  heading = 'Ranked results',
 }) => {
   const [sortColumn, setSortColumn] = useState<SortColumn>(frequency === 'longTerm' ? 'longTerm' : frequency);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -98,7 +100,7 @@ export const CorrelationRankedGroups: React.FC<CorrelationRankedGroupsProps> = (
   return (
     <Block marginBottom="scale600">
       <Block display="flex" alignItems="center" gridGap="scale200" marginBottom="scale300">
-        <LabelSmall $style={{ fontWeight: 700 }}>Ranked results</LabelSmall>
+        <LabelSmall $style={{ fontWeight: 700 }}>{heading}</LabelSmall>
         <CorrelationInfoTooltip />
       </Block>
       {CORRELATION_CATEGORY_ORDER.map((category) => {
@@ -130,7 +132,7 @@ export const CorrelationRankedGroups: React.FC<CorrelationRankedGroupsProps> = (
                       </th>
                     ))}
                     <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e2e8f0' }}>Horizons</th>
-                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e2e8f0' }}>AI rationale</th>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid #e2e8f0' }}>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
