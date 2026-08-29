@@ -1,67 +1,36 @@
-# MF Analysis React
+# Portfolio Simulator
 
-A React application for mutual fund analysis with interactive charts and portfolio simulation.
-
-## Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm test
-``` 
-
-## Deployment
-
-This project is configured for GitHub Pages deployment.
-
-### Deploy to GitHub Pages
-
-1. Install deployment dependencies:
-   ```bash
-   npm install --save-dev gh-pages
-   ```
-2. Deploy:
-   ```bash
-   npm run deploy
-   ```
-
-### Live Demo
-
-[View Live Application](https://asrajavel.github.io/portfolio-simulator/) 
+A React and TypeScript app for comparing portfolio strategies with stock price data, charts, and return calculations.
 
 ## Features
 
-- Interactive mutual fund analysis
-- Portfolio simulation and tracking
-- Highcharts visualizations  
-- XIRR calculations
-- TypeScript support
-- Responsive design
-- Comprehensive test coverage
+- Lumpsum portfolio simulator
+- SIP and SWP simulations
+- Stock price charts
+- Net worth estimator
+- XIRR and return calculations
+
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local Vite URL shown in the terminal.
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm test
+```
 
 ## Tech Stack
 
-- React 18
+- React
 - TypeScript
 - Vite
 - Highcharts
-- Jest (Testing)
-- GitHub Pages (Hosting)
-
-## Development
-
-```bash
-# Watch mode for tests
-npm run test:watch
-
-# Preview production build
-npm run preview
-``` 
+- Jest
